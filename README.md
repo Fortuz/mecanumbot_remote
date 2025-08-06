@@ -15,8 +15,11 @@ Lot of the setup and codes came from the original Turtlebot3 project but a huge 
 
 ## Mecanumbot introduction
 
-(image of the robot)
-(image of the arhitecture)
+(image of the robot) <br>
+(image of the arhitecture) <br>
+
+(include STL files for 3D printing) <br>
+(Motor setup)
 
 ## Setup
 
