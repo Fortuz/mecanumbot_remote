@@ -1,5 +1,3 @@
-# Mecanum_PC
-
 ## Mecanumbot Project
 
 The Mecanumbot projects goal is to build a Turtlebot3 friend with mecanum wheel drive and fit into the Turtlebot3 family.
