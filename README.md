@@ -2,10 +2,12 @@
 
 The Mecanumbot projects goal is to build a Turtlebot3 friend with mecanum wheel drive and fit into the Turtlebot3 family.
 
-The projct includes 3 repositories:
-- [Mecanum_PC](https://github.com/Fortuz/Mecanum_PC): Includes the main documentation and ROS2 packages to be installed on an external computer.
-- [Mecanum_Pi](https://github.com/Fortuz/Mecanum_Pi): Includes the ROS2 packages to be installed on the onboard Raspberry Pi on the Mecanumbot itself.
-- [Mecanum_Arduino](https://github.com/Fortuz/Mecanum_Arduino): Includes the Arduino C codes for the micro controllers mounted on the Mecanumbot (OpenCR and Arduino Nano).
+## Project Repositories
+
+[mecanumbot_microcontrollers](https://github.com/Fortuz/mecanumbot_microcontrollers) - Contains the microcontroller codes for the project  
+[mecanumbot_remote](https://github.com/Fortuz/mecanumbot_remote) - Contains ROS2 packages for used on an external computer connected to the robot
+[mecanumbot](https://github.com/Fortuz/mecanumbot) - [This repository] Contains ROS2 packages run on the Raspberry Pi on the robot
+[mecanumbot_python](https://github.com/fegyobeno/mecanumbot_python.git) - Contains the native python scripts for manipulating the motors. Can be found on the robot locally in the ~/Sandbox folder
 
 The project is made with Ubuntu 22.04 and ROS2 Humble. <br>
 As a main source of information, documentation, codes and more the original [Turtlebot3 e-Manual](https://emanual.robotis.com/docs/en/platform/turtlebot3/overview/) can be found here.
@@ -13,19 +15,22 @@ Lot of the setup and codes came from the original Turtlebot3 project but a huge 
 
 ## Mecanumbot introduction
 
-(image of the robot) <br>
-(image of the arhitecture) <br>
+<p align="center">
+  <img src="https://github.com/Fortuz/mecanumbot/blob/main/docs/images/mecanumbot.jpg" width="600" alt="Mecanumbot">
+</p>
 
-(include STL files for 3D printing) <br>
-(Motor setup)
+<p align="center">
+  <img src="https://github.com/Fortuz/mecanumbot/blob/main/docs/images/turtlebot_architecture.drawio.png" width="600" alt="Architecture">
+</p>
+
 
 ## Setup
 
 ### PC Setup
 
-Download and Install Ubuntu 22.04 LTS Desktop (3.1.1. at the Turtlebot3 e-Manual) <br>
-Install ROS2 on the PC (3.1.2. at the Turtlebot3 e-Manual) <br>
-Install dependent ROS2 Packages (3.1.3. at the Turtlebot3 e-Manual) <br>
+Download and Install Ubuntu 22.04 LTS Desktop (3.1.1. at the [Turtlebot3 e-Manual](https://emanual.robotis.com/docs/en/platform/turtlebot3/overview/)) <br>
+Install ROS2 on the PC (3.1.2. at the [Turtlebot3 e-Manual](https://emanual.robotis.com/docs/en/platform/turtlebot3/overview/)) <br>
+Install dependent ROS2 Packages (3.1.3. at the [Turtlebot3 e-Manual](https://emanual.robotis.com/docs/en/platform/turtlebot3/overview/)) <br>
 
 3.1.4. coming <br> Install packages
 3.1.5 coming <br> Environment Configuration
@@ -60,7 +65,6 @@ The OpenCR_core should be uploaded to the OpenCR board (settings coming soon). <
 
 ### Test
 
-Test with RC100 controller to move the robot. <br>
 The LEd controlls can be tested with a ROS2 srv.
 
 
