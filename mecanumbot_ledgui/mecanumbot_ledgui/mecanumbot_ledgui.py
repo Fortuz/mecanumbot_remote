@@ -6,7 +6,7 @@ Layout: single table with rows for corners (FL, FR, BL, BR):
 Corner | Color | Mode
 
 """
-
+import os
 import json
 import threading
 import tkinter as tk
@@ -15,6 +15,7 @@ from tkinter import ttk, messagebox, simpledialog
 
 import rclpy
 from rclpy.node import Node
+from ament_index_python.packages import get_package_share_directory
 
 from mecanumbot_msgs.srv import GetLedStatus, SetLedStatus
 
@@ -47,7 +48,9 @@ CORNERS = ["FL", "FR", "BL", "BR"]
 SET_SRV = "set_led_status"
 GET_SRV = "get_led_status"
 
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent.parent.parent.parent.parent /"mecanumbot_ledgui" / "configs" / "led_configs.json"
+# CONFIG_PATH = Path(__file__).resolve().parent.parent.parent.parent.parent.parent.parent /"mecanumbot_ledgui" / "configs" / "led_configs.json"
+CONFIG_PATH = os.path.join(get_package_share_directory('mecanumbot_ledgui'), 'configs', 'led_configs.json')
+
 
 
 # ---------------------------- ROS2 Client Node ----------------------------- #
@@ -192,8 +195,10 @@ class App(tk.Tk):
 
     def load_saved_configs(self):
         try:
-            if CONFIG_PATH.exists():
-                with CONFIG_PATH.open("r", encoding="utf-8") as f:
+            #if CONFIG_PATH.exists():
+            if os.path.exists(CONFIG_PATH):
+                #with CONFIG_PATH.open("r", encoding="utf-8") as f:
+                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     # Expected shape: { name: { 'FL': {'mode': int,'color': int}, ... } }
                     return data if isinstance(data, dict) else {}
@@ -203,7 +208,8 @@ class App(tk.Tk):
 
     def save_configs_to_disk(self):
         try:
-            with CONFIG_PATH.open("w", encoding="utf-8") as f:
+            #with CONFIG_PATH.open("w", encoding="utf-8") as f:
+            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.saved_configs, f, indent=2)
         except Exception as e:
             messagebox.showerror("Configs", f"Failed to save configs:\n{e}")
@@ -226,7 +232,7 @@ class App(tk.Tk):
                     msg = getattr(res, 'message', 'Unknown error') if res else 'No response'
                     self.after(0, lambda: messagebox.showerror("SET", f"Failed: {msg}"))
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("SET", f"Exception: {e}"))
+                self.after(0, lambda e=e: messagebox.showerror("SET", f"Exception: {e}"))
         threading.Thread(target=work, daemon=True).start()
 
     def on_get(self):
@@ -244,7 +250,7 @@ class App(tk.Tk):
                 }
                 self.after(0, lambda: self.apply_values_to_ui(mapping))
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("GET", f"Exception: {e}"))
+                self.after(0, lambda e=e: messagebox.showerror("GET", f"Exception: {e}"))
         threading.Thread(target=work, daemon=True).start()
 
     def on_save(self):

@@ -1,4 +1,6 @@
 from setuptools import find_packages, setup
+import os
+from glob import glob
 
 package_name = 'mecanumbot_ledgui'
 
@@ -11,6 +13,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', ['launch/mecanumbot_ledgui.launch.py']),
+        (os.path.join('share', package_name, 'configs'), glob('configs/*')),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
