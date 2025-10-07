@@ -76,8 +76,8 @@ Moving around:
 
         
 w/x : increase/decrease linear x velocity (Mecanumbot : ~ 0.26)
-q/e : increase/decrease angular velocity (Mecanumbot : ~ 1.82)
-a/d : increase/decrease linear y velocity (Mecanumbot : ~ 0.26)
+q/e : decrease/increase angular velocity (Mecanumbot : ~ 1.82)
+a/d : decrease/increase linear y velocity (Mecanumbot : ~ 0.26)
 
 Moving accessories:
         i    
@@ -228,22 +228,22 @@ def main():
                     check_linear_limit_velocity(target_linear_x_velocity - LIN_VEL_STEP_SIZE)
                 status = status + 1
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
-            elif key == 'a':
-                target_linear_y_velocity =\
-                    check_linear_limit_velocity(target_linear_y_velocity - LIN_VEL_STEP_SIZE)
-                status = status + 1
-                print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
-            elif key == 'd':
+            elif key == 'a': # left, positive y direction
                 target_linear_y_velocity =\
                     check_linear_limit_velocity(target_linear_y_velocity + LIN_VEL_STEP_SIZE)
                 status = status + 1
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
-            elif key == 'q':
+            elif key == 'd': # right, negative y direction
+                target_linear_y_velocity =\
+                    check_linear_limit_velocity(target_linear_y_velocity - LIN_VEL_STEP_SIZE)
+                status = status + 1
+                print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
+            elif key == 'q': # left rotation, positive angular direction
                 target_angular_velocity =\
                     check_angular_limit_velocity(target_angular_velocity + ANG_VEL_STEP_SIZE)
                 status = status + 1
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
-            elif key == 'e':
+            elif key == 'e': # right rotation, negative angular direction
                 target_angular_velocity =\
                     check_angular_limit_velocity(target_angular_velocity - ANG_VEL_STEP_SIZE)
                 status = status + 1
