@@ -39,7 +39,7 @@ import select
 import sys
 
 from geometry_msgs.msg import Twist, Vector3
-from geometry_msgs.msg import TwistStamped, Vector3Stamped
+from mecanumbot_msgs.msg import AccessoryMotors
 import rclpy
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile
@@ -52,22 +52,21 @@ else:
 
 MECANUMBOT_MAX_LIN_VEL = 0.26
 MECANUMBOT_MAX_ANG_VEL = 1.82
+
 MECANUMBOT_MIN_CAM_POS = 2.0
 MECANUMBOT_MAX_CAM_POS = 8.6
+MECANUMBOT_MID_CAM_POS = (MECANUMBOT_MIN_CAM_POS + MECANUMBOT_MAX_CAM_POS)/2
+
 MECANUMBOT_MIN_GRIPPER_POS = 1.6
 MECANUMBOT_FRONT_GRIPPER_POS = 5.12
 MECANUMBOT_MAX_GRIPPER_POS = 8.54
 
-WAFFLE_MAX_LIN_VEL = 0.26
-WAFFLE_MAX_ANG_VEL = 1.82
 
 LIN_VEL_STEP_SIZE = 0.01
 ANG_VEL_STEP_SIZE = 0.1
 
-TURTLEBOT3_MODEL = os.environ['TURTLEBOT3_MODEL']
-
 msg = """
-Control Your TurtleBot3 frined - Mecanumbot !
+Control Your TurtleBot3 friend - Mecanumbot !
 ---------------------------
 Moving around:
    q    w    e
@@ -140,25 +139,15 @@ def constrain(input_vel, low_bound, high_bound):
 
 
 def check_linear_limit_velocity(velocity):
-    if TURTLEBOT3_MODEL == 'mecanumbot':
-        return constrain(velocity, -MECANUMBOT_MAX_LIN_VEL, MECANUMBOT_MAX_LIN_VEL)
-    else:
-        return constrain(velocity, -WAFFLE_MAX_LIN_VEL, WAFFLE_MAX_LIN_VEL)
+    return constrain(velocity, -MECANUMBOT_MAX_LIN_VEL, MECANUMBOT_MAX_LIN_VEL)
 
 
 def check_angular_limit_velocity(velocity):
-    if TURTLEBOT3_MODEL == 'mecanumbot':
-        return constrain(velocity, -MECANUMBOT_MAX_ANG_VEL, MECANUMBOT_MAX_ANG_VEL)
-    else:
-        return constrain(velocity, -WAFFLE_MAX_ANG_VEL, WAFFLE_MAX_ANG_VEL)
+    return constrain(velocity, -MECANUMBOT_MAX_ANG_VEL, MECANUMBOT_MAX_ANG_VEL)
 
-def create_twistcmd(linear_x, linear_y, angular_z, ROS_DISTRO):
-    if ROS_DISTRO == 'humble':
-        twist = Twist()
-    else:
-        twist = TwistStamped()
-        twist.header.stamp = Clock().now().to_msg()
-        twist.header.frame_id = ''
+def create_twistcmd(linear_x, linear_y, angular_z):
+    
+    twist = Twist()
     twist.linear.x = linear_x
     twist.linear.y = linear_y
     twist.linear.z = 0.0
@@ -169,18 +158,13 @@ def create_twistcmd(linear_x, linear_y, angular_z, ROS_DISTRO):
 
     return twist
 
-def create_rotcmd(x, y, z, ROS_DISTRO):
-    if ROS_DISTRO == 'humble':
-        rot = Vector3()
-    else:
-        rot = Vector3Stamped()
-        rot.header.stamp = Clock().now().to_msg()
-        rot.header.frame_id = ''
-    rot.x = x
-    rot.y = y
-    rot.z = z
+def create_accessory_cmd(N,GL,GR):
+    pos = AccessoryMotors()
+    pos.Neck = N
+    pos.GrabberLeft = GL # gripper left
+    pos.GrabberRight = GR # gripper right
 
-    return rot
+    return pos
 
 def main():
     settings = None
@@ -188,19 +172,10 @@ def main():
         settings = termios.tcgetattr(sys.stdin)
 
     rclpy.init()
-    ROS_DISTRO = os.environ.get('ROS_DISTRO')
     qos = QoSProfile(depth=10)
     node = rclpy.create_node('mecanumbot_keyboard')
-    if ROS_DISTRO == 'humble':
-        pub_vel = node.create_publisher(Twist, 'cmd_vel', qos)
-        pub_cam = node.create_publisher(Vector3, 'cmd_cam_ori', qos)
-        pub_gripper_left = node.create_publisher(Vector3, 'cmd_grabberleft_ori', qos)
-        pub_gripper_right = node.create_publisher(Vector3, 'cmd_grabberright_ori', qos)
-    else:
-        pub_vel = node.create_publisher(TwistStamped, 'cmd_vel', qos)
-        pub_cam = node.create_publisher(Vector3Stamped, 'cmd_cam_ori', qos)
-        pub_gripper_left = node.create_publisher(Vector3Stamped, 'cmd_grabberleft_ori', qos)
-        pub_gripper_right = node.create_publisher(Vector3Stamped, 'cmd_grabberright_ori', qos)
+    pub_vel = node.create_publisher(Twist, 'cmd_vel', qos)
+    pub_accessory = node.create_publisher(AccessoryMotors, 'cmd_accessory_motors', qos)
 
     status = 0
     target_linear_x_velocity  = 0.0
@@ -210,9 +185,9 @@ def main():
     control_linear_y_velocity = 0.0
     control_angular_velocity  = 0.0
 
-    control_cam_ori = [0.0,MECANUMBOT_MAX_CAM_POS,0.0] # x,y,z, moves around y axis of the robot 
-    control_gripper_left_ori = [0.0,0.0,6.55] # x,y,z, moves around z axis of the robot
-    control_gripper_right_ori = [0.0,0.0,3.6] # x,y,z, moves around y axis of the robot
+    control_cam_ori = MECANUMBOT_MAX_CAM_POS
+    control_gripper_left_ori = 6.55 
+    control_gripper_right_ori = 3.6 
 
     try:
         print(msg)
@@ -257,15 +232,15 @@ def main():
                 control_angular_velocity = 0.0
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
             elif key == 'i': #cam_up
-                control_cam_ori[1] = MECANUMBOT_MAX_CAM_POS 
+                control_cam_ori = MECANUMBOT_MAX_CAM_POS 
             elif key == 'k': #cam_down
-                control_cam_ori[1] = (MECANUMBOT_MIN_CAM_POS + MECANUMBOT_MAX_CAM_POS)/2
+                control_cam_ori = MECANUMBOT_MID_CAM_POS
             elif key == 'j': #open gripper,rot around robot axis z
-                control_gripper_left_ori[2] = 3.6
-                control_gripper_right_ori[2] = 6.55
+                control_gripper_left_ori = 3.6
+                control_gripper_right_ori = 6.55
             elif key == 'l': #close gripper, rot around robot axis z
-                control_gripper_left_ori[2] = 6.55
-                control_gripper_right_ori[2] = 3.6
+                control_gripper_left_ori = 6.55
+                control_gripper_right_ori = 3.6
             else:
                 if (key == '\x03'):
                     break
@@ -288,40 +263,24 @@ def main():
                 control_angular_velocity,
                 target_angular_velocity,
                 (ANG_VEL_STEP_SIZE / 2.0))
-            twist = create_twistcmd(control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity, ROS_DISTRO)
+            
+            twist = create_twistcmd(control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity)
             pub_vel.publish(twist)
-            gripper_left_ori =create_rotcmd(control_gripper_left_ori[0], control_gripper_left_ori[1], control_gripper_left_ori[2], ROS_DISTRO)
-            pub_gripper_left.publish(gripper_left_ori)
-            gripper_right_ori =create_rotcmd(control_gripper_right_ori[0], control_gripper_right_ori[1], control_gripper_right_ori[2], ROS_DISTRO)
-            pub_gripper_right.publish(gripper_right_ori)
-            cam_ori =create_rotcmd(control_cam_ori[0], control_cam_ori[1], control_cam_ori[2], ROS_DISTRO)
-            pub_cam.publish(cam_ori)
-
+            accessory_cmds =create_accessory_cmd(control_cam_ori, control_gripper_left_ori, control_gripper_right_ori)
+            pub_accessory.publish(accessory_cmds)
     except Exception as e:
         print(e)
 
     finally:
-        if ROS_DISTRO == 'humble':
-            twist = Twist()
-            twist.linear.x = 0.0
-            twist.linear.y = 0.0
-            twist.linear.z = 0.0
-            twist.angular.x = 0.0
-            twist.angular.y = 0.0
-            twist.angular.z = 0.0
-            pub_vel.publish(twist)
-        else:
-            twist_stamped = TwistStamped()
-            twist_stamped.header.stamp = Clock().now().to_msg()
-            twist_stamped.header.frame_id = ''
-            twist_stamped.twist.linear.x = control_linear_x_velocity
-            twist_stamped.twist.linear.y = control_linear_x_velocity
-            twist_stamped.twist.linear.z = 0.0
-            twist_stamped.twist.angular.x = 0.0
-            twist_stamped.twist.angular.y = 0.0
-            twist_stamped.twist.angular.z = control_angular_velocity
-            pub_vel.publish(twist_stamped)
-
+        twist = Twist()
+        twist.linear.x = 0.0
+        twist.linear.y = 0.0
+        twist.linear.z = 0.0
+        twist.angular.x = 0.0
+        twist.angular.y = 0.0
+        twist.angular.z = 0.0
+        pub_vel.publish(twist)
+    
         if os.name != 'nt':
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
