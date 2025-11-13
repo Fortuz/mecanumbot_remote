@@ -160,9 +160,9 @@ def create_twistcmd(linear_x, linear_y, angular_z):
 
 def create_poscmd(N,GL,GR):
     posi = AccessMotorCmd
-    posi.N = N
-    posi.GL = GL
-    posi.GR = GR
+    posi.n = N
+    posi.gl = GL
+    posi.gr = GR
 
     return posi
 
