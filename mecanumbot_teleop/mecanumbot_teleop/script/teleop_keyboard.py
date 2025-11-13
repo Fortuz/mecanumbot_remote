@@ -159,10 +159,10 @@ def create_twistcmd(linear_x, linear_y, angular_z):
     return twist
 
 def create_poscmd(N,GL,GR):
-    posi = AccessMotorCmd
-    posi.n = N
-    posi.gl = GL
-    posi.gr = GR
+    posi = AccessMotorCmd()
+    posi.n_pos = N
+    posi.gl_pos = GL
+    posi.gr_pos = GR
 
     return posi
 
