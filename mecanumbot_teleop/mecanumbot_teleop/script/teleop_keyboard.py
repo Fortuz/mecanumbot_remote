@@ -37,9 +37,9 @@
 import os
 import select
 import sys
-
-from geometry_msgs.msg import Twist, Vector3
-from geometry_msgs.msg import TwistStamped, Vector3Stamped
+import time
+from geometry_msgs.msg import Twist
+from mecanumbot_msgs.msg import AccessMotorCmd
 import rclpy
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile
@@ -49,7 +49,6 @@ if os.name == 'nt':
 else:
     import termios
     import tty
-
 MECANUMBOT_MAX_LIN_VEL = 0.26
 MECANUMBOT_MAX_ANG_VEL = 1.82
 MECANUMBOT_MIN_CAM_POS = 2.0
@@ -57,7 +56,7 @@ MECANUMBOT_MAX_CAM_POS = 8.6
 MECANUMBOT_MIN_GRIPPER_POS = 1.6
 MECANUMBOT_FRONT_GRIPPER_POS = 5.12
 MECANUMBOT_MAX_GRIPPER_POS = 8.54
-
+SLEEP_TIME = 0.01
 WAFFLE_MAX_LIN_VEL = 0.26
 WAFFLE_MAX_ANG_VEL = 1.82
 
@@ -152,13 +151,8 @@ def check_angular_limit_velocity(velocity):
     else:
         return constrain(velocity, -WAFFLE_MAX_ANG_VEL, WAFFLE_MAX_ANG_VEL)
 
-def create_twistcmd(linear_x, linear_y, angular_z, ROS_DISTRO):
-    if ROS_DISTRO == 'humble':
-        twist = Twist()
-    else:
-        twist = TwistStamped()
-        twist.header.stamp = Clock().now().to_msg()
-        twist.header.frame_id = ''
+def create_twistcmd(linear_x, linear_y, angular_z):
+    twist = Twist()
     twist.linear.x = linear_x
     twist.linear.y = linear_y
     twist.linear.z = 0.0
@@ -169,18 +163,13 @@ def create_twistcmd(linear_x, linear_y, angular_z, ROS_DISTRO):
 
     return twist
 
-def create_rotcmd(x, y, z, ROS_DISTRO):
-    if ROS_DISTRO == 'humble':
-        rot = Vector3()
-    else:
-        rot = Vector3Stamped()
-        rot.header.stamp = Clock().now().to_msg()
-        rot.header.frame_id = ''
-    rot.x = x
-    rot.y = y
-    rot.z = z
+def create_poscmd(N,GL,GR):
+    posi = AccessMotorCmd
+    posi.N = N
+    posi.GL = GL
+    posi.GR = GR
 
-    return rot
+    return posi
 
 def main():
     settings = None
@@ -188,20 +177,10 @@ def main():
         settings = termios.tcgetattr(sys.stdin)
 
     rclpy.init()
-    ROS_DISTRO = os.environ.get('ROS_DISTRO')
-    qos = QoSProfile(depth=10)
+    qos = QoSProfile(depth=0)
     node = rclpy.create_node('mecanumbot_keyboard')
-    if ROS_DISTRO == 'humble':
-        pub_vel = node.create_publisher(Twist, 'cmd_vel', qos)
-        pub_cam = node.create_publisher(Vector3, 'cmd_cam_ori', qos)
-        pub_gripper_left = node.create_publisher(Vector3, 'cmd_grabberleft_ori', qos)
-        pub_gripper_right = node.create_publisher(Vector3, 'cmd_grabberright_ori', qos)
-    else:
-        pub_vel = node.create_publisher(TwistStamped, 'cmd_vel', qos)
-        pub_cam = node.create_publisher(Vector3Stamped, 'cmd_cam_ori', qos)
-        pub_gripper_left = node.create_publisher(Vector3Stamped, 'cmd_grabberleft_ori', qos)
-        pub_gripper_right = node.create_publisher(Vector3Stamped, 'cmd_grabberright_ori', qos)
-
+    pub_vel = node.create_publisher(Twist, 'mecanumbot/cmd_vel', qos)
+    pub_accessory = node.create_publisher(AccessMotorCmd, 'mecanumbot/cmd_accessory_pos', qos)
     status = 0
     target_linear_x_velocity  = 0.0
     target_linear_y_velocity  = 0.0
@@ -210,10 +189,8 @@ def main():
     control_linear_y_velocity = 0.0
     control_angular_velocity  = 0.0
 
-    control_cam_ori = [0.0,MECANUMBOT_MAX_CAM_POS,0.0] # x,y,z, moves around y axis of the robot 
-    control_gripper_left_ori = [0.0,0.0,6.55] # x,y,z, moves around z axis of the robot
-    control_gripper_right_ori = [0.0,0.0,3.6] # x,y,z, moves around y axis of the robot
-
+    control_access_pos = [MECANUMBOT_MAX_CAM_POS,MECANUMBOT_MAX_GRIPPER_POS,MECANUMBOT_MIN_GRIPPER_POS] #cam, left gripper, right gripper
+    key_handled = False  
     try:
         print(msg)
         while (1):
@@ -223,30 +200,36 @@ def main():
                     check_linear_limit_velocity(target_linear_x_velocity + LIN_VEL_STEP_SIZE)
                 status = status + 1
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
+                key_handled = True
             elif key == 'x':
                 target_linear_x_velocity =\
                     check_linear_limit_velocity(target_linear_x_velocity - LIN_VEL_STEP_SIZE)
                 status = status + 1
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
+                key_handled = True  
             elif key == 'a': # left, positive y direction
                 target_linear_y_velocity =\
                     check_linear_limit_velocity(target_linear_y_velocity + LIN_VEL_STEP_SIZE)
                 status = status + 1
+                key_handled = True
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
             elif key == 'd': # right, negative y direction
                 target_linear_y_velocity =\
                     check_linear_limit_velocity(target_linear_y_velocity - LIN_VEL_STEP_SIZE)
                 status = status + 1
+                key_handled = True
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
             elif key == 'q': # left rotation, positive angular direction
                 target_angular_velocity =\
                     check_angular_limit_velocity(target_angular_velocity + ANG_VEL_STEP_SIZE)
                 status = status + 1
+                key_handled = True
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
             elif key == 'e': # right rotation, negative angular direction
                 target_angular_velocity =\
                     check_angular_limit_velocity(target_angular_velocity - ANG_VEL_STEP_SIZE)
                 status = status + 1
+                key_handled = True
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
             elif key == ' ' or key == 's':
                 target_linear_x_velocity = 0.0
@@ -255,17 +238,22 @@ def main():
                 control_linear_y_velocity = 0.0
                 target_angular_velocity = 0.0
                 control_angular_velocity = 0.0
+                key_handled = True
                 print_vels(target_linear_x_velocity, target_linear_y_velocity, target_angular_velocity)
             elif key == 'i': #cam_up
-                control_cam_ori[1] = MECANUMBOT_MAX_CAM_POS 
+                key_handled = True
+                control_access_pos[0] = MECANUMBOT_MAX_CAM_POS
             elif key == 'k': #cam_down
-                control_cam_ori[1] = (MECANUMBOT_MIN_CAM_POS + MECANUMBOT_MAX_CAM_POS)/2
+                key_handled = True
+                control_access_pos[0] = (MECANUMBOT_MIN_CAM_POS + MECANUMBOT_MAX_CAM_POS)/2
             elif key == 'j': #open gripper,rot around robot axis z
-                control_gripper_left_ori[2] = 3.6
-                control_gripper_right_ori[2] = 6.55
+                key_handled = True
+                control_access_pos[1] = MECANUMBOT_MAX_GRIPPER_POS
+                control_access_pos[2] = MECANUMBOT_MIN_GRIPPER_POS
             elif key == 'l': #close gripper, rot around robot axis z
-                control_gripper_left_ori[2] = 6.55
-                control_gripper_right_ori[2] = 3.6
+                key_handled = True  
+                control_access_pos[1] = MECANUMBOT_MIN_GRIPPER_POS
+                control_access_pos[2] = MECANUMBOT_MAX_GRIPPER_POS
             else:
                 if (key == '\x03'):
                     break
@@ -288,40 +276,24 @@ def main():
                 control_angular_velocity,
                 target_angular_velocity,
                 (ANG_VEL_STEP_SIZE / 2.0))
-            twist = create_twistcmd(control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity, ROS_DISTRO)
+            twist = create_twistcmd(control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity)
             pub_vel.publish(twist)
-            gripper_left_ori =create_rotcmd(control_gripper_left_ori[0], control_gripper_left_ori[1], control_gripper_left_ori[2], ROS_DISTRO)
-            pub_gripper_left.publish(gripper_left_ori)
-            gripper_right_ori =create_rotcmd(control_gripper_right_ori[0], control_gripper_right_ori[1], control_gripper_right_ori[2], ROS_DISTRO)
-            pub_gripper_right.publish(gripper_right_ori)
-            cam_ori =create_rotcmd(control_cam_ori[0], control_cam_ori[1], control_cam_ori[2], ROS_DISTRO)
-            pub_cam.publish(cam_ori)
-
+            accessory_motor_cmd = create_poscmd(control_access_pos[0],control_access_pos[1],control_access_pos[2])
+            pub_accessory.publish(accessory_motor_cmd)
+            if key_handled:
+                key_handled = False
+                time.sleep(SLEEP_TIME)
     except Exception as e:
         print(e)
-
     finally:
-        if ROS_DISTRO == 'humble':
-            twist = Twist()
-            twist.linear.x = 0.0
-            twist.linear.y = 0.0
-            twist.linear.z = 0.0
-            twist.angular.x = 0.0
-            twist.angular.y = 0.0
-            twist.angular.z = 0.0
-            pub_vel.publish(twist)
-        else:
-            twist_stamped = TwistStamped()
-            twist_stamped.header.stamp = Clock().now().to_msg()
-            twist_stamped.header.frame_id = ''
-            twist_stamped.twist.linear.x = control_linear_x_velocity
-            twist_stamped.twist.linear.y = control_linear_x_velocity
-            twist_stamped.twist.linear.z = 0.0
-            twist_stamped.twist.angular.x = 0.0
-            twist_stamped.twist.angular.y = 0.0
-            twist_stamped.twist.angular.z = control_angular_velocity
-            pub_vel.publish(twist_stamped)
-
+        twist = Twist()
+        twist.linear.x = 0.0
+        twist.linear.y = 0.0
+        twist.linear.z = 0.0
+        twist.angular.x = 0.0
+        twist.angular.y = 0.0
+        twist.angular.z = 0.0
+        pub_vel.publish(twist)
         if os.name != 'nt':
             termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
