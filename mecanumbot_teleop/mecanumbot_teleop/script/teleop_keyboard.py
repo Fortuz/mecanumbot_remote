@@ -184,7 +184,7 @@ def main():
     control_linear_y_velocity = 0.0
     control_angular_velocity  = 0.0
 
-    control_access_pos = [MECANUMBOT_MAX_CAM_POS,MECANUMBOT_MAX_GRIPPER_POS,MECANUMBOT_MIN_GRIPPER_POS] #cam, left gripper, right gripper
+    control_access_pos = [MECANUMBOT_MAX_CAM_POS,MECANUMBOT_FRONT_GRIPPER_POS,MECANUMBOT_FRONT_GRIPPER_POS] #cam, left gripper, right gripper
     key_handled = False  
     try:
         print(msg)
@@ -243,12 +243,12 @@ def main():
                 control_access_pos[0] = (MECANUMBOT_MIN_CAM_POS + MECANUMBOT_MAX_CAM_POS)/2
             elif key == 'j': #open gripper,rot around robot axis z
                 key_handled = True
-                control_access_pos[1] = MECANUMBOT_MAX_GRIPPER_POS
-                control_access_pos[2] = MECANUMBOT_MIN_GRIPPER_POS
+                control_access_pos[1] = (MECANUMBOT_MAX_GRIPPER_POS + MECANUMBOT_FRONT_GRIPPER_POS)/2
+                control_access_pos[2] = (MECANUMBOT_MIN_GRIPPER_POS + MECANUMBOT_FRONT_GRIPPER_POS)/2
             elif key == 'l': #close gripper, rot around robot axis z
                 key_handled = True  
-                control_access_pos[1] = MECANUMBOT_MIN_GRIPPER_POS
-                control_access_pos[2] = MECANUMBOT_MAX_GRIPPER_POS
+                control_access_pos[1] = (MECANUMBOT_MIN_GRIPPER_POS + MECANUMBOT_FRONT_GRIPPER_POS)/2
+                control_access_pos[2] = (MECANUMBOT_MAX_GRIPPER_POS + MECANUMBOT_FRONT_GRIPPER_POS)/2
             else:
                 if (key == '\x03'):
                     break
