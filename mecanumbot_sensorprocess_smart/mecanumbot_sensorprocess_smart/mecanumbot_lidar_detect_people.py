@@ -36,10 +36,12 @@ class DrSpaamNode(Node):
         self.declare_parameter("scan_topic", "scan")
         self.declare_parameter("detections_topic", "dets")
         self.declare_parameter("rviz_topic", "dets_marker")
+        self.declare_parameter("leading_mode",True)
 
         self.weight_file = self.get_parameter("weight_file").value
         self.conf_thresh = self.get_parameter("conf_thresh").value
         self.stride = self.get_parameter("stride").value
+        self.leading_mode = self.get_parameter("leading_mode")
 
         pkg_share = get_package_share_directory('mecanumbot_sensorprocess_smart')
         weight_file = self.get_parameter("weight_file").value
@@ -60,11 +62,14 @@ class DrSpaamNode(Node):
         self.dets_pub = self.create_publisher(PoseArray,
                                               self.get_parameter("detections_topic").value,
                                               10)
-
+        
         self.rviz_pub = self.create_publisher(Marker,
                                               self.get_parameter("rviz_topic").value,
                                               10)
-
+        if self.leading_mode:
+            self.subject_pub = self.create_publisher(Pose,
+                                                    "subject_pose",
+                                                    10)
         # ---- Subscriber ----
 
         self.scan_sub = self.create_subscription(
@@ -100,7 +105,11 @@ class DrSpaamNode(Node):
         dets_msg = self._dets_to_pose_array(dets_xy)
         dets_msg.header = msg.header
         self.dets_pub.publish(dets_msg)
-
+        if self.leading_mode and i == 0:
+                ps_msg = PoseStamped()
+                ps_msg.header = msg.header
+                ps_msg.pose = dets_msg.poses[0]
+                self.subject_pub.publish(ps_msg)
         # Publish RViz marker
         marker_msg = self._dets_to_marker(dets_xy)
         marker_msg.header = msg.header
@@ -115,6 +124,7 @@ class DrSpaamNode(Node):
             p.position.y = xy[0]
             p.position.z = 0.0
             msg.poses.append(p)
+
         return msg
 
 
