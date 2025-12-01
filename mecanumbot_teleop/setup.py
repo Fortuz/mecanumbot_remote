@@ -1,5 +1,6 @@
 from setuptools import find_packages
 from setuptools import setup
+from glob import glob
 
 package_name = 'mecanumbot_teleop'
 
@@ -10,6 +11,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/launch',  glob('launch/*')),
     ],
     install_requires=[
         'setuptools',
@@ -32,7 +34,8 @@ setup(
     license='Apache License, Version 2.0',
     entry_points={
         'console_scripts': [
-            'mecanumbot_keyboard = mecanumbot_teleop.script.teleop_keyboard:main'
+            'mecanumbot_keyboard = mecanumbot_teleop.script.teleop_keyboard:main',
+            'mecanumbot_joystick = mecanumbot_teleop.script.teleop_joystick:main'
         ],
     },
 )
