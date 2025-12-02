@@ -198,10 +198,11 @@ class MecanumbotJoyTeleop(Node):
         self.get_logger().debug(f'Updated target_vel={self.target_vel}')
 
     def timer_publish(self):
-        # smoothly move control_vel towards target_vel
+        '''# smoothly move control_vel towards target_vel
         self.control_vel[0] = make_simple_profile(self.control_vel[0], self.target_vel[0], self.lin_step / 2.0)
         self.control_vel[1] = make_simple_profile(self.control_vel[1], self.target_vel[1], self.lin_step / 2.0)
-        self.control_vel[2] = make_simple_profile(self.control_vel[2], self.target_vel[2], self.ang_step / 2.0)
+        self.control_vel[2] = make_simple_profile(self.control_vel[2], self.target_vel[2], self.ang_step / 2.0)'''
+        self.control_vel = self.target_vel
 
         # enforce limits
         self.control_vel[0] = constrain(self.control_vel[0], -self.max_lin, self.max_lin)
