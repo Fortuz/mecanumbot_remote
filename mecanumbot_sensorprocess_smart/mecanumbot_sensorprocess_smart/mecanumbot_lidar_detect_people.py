@@ -4,7 +4,7 @@ import rclpy
 from rclpy.node import Node
 import os
 from sensor_msgs.msg import LaserScan
-from geometry_msgs.msg import Point, Pose, PoseArray
+from geometry_msgs.msg import Point, Pose, PoseStamped, PoseArray
 from rclpy.qos import qos_profile_sensor_data
 from visualization_msgs.msg import Marker
 import torch
@@ -67,7 +67,7 @@ class DrSpaamNode(Node):
                                               self.get_parameter("rviz_topic").value,
                                               10)
         if self.leading_mode:
-            self.subject_pub = self.create_publisher(Pose,
+            self.subject_pub = self.create_publisher(PoseStamped,
                                                     "subject_pose",
                                                     10)
         # ---- Subscriber ----
@@ -105,7 +105,7 @@ class DrSpaamNode(Node):
         dets_msg = self._dets_to_pose_array(dets_xy)
         dets_msg.header = msg.header
         self.dets_pub.publish(dets_msg)
-        if self.leading_mode and i == 0:
+        if self.leading_mode and len(dets_msg.poses) > 0:
                 ps_msg = PoseStamped()
                 ps_msg.header = msg.header
                 ps_msg.pose = dets_msg.poses[0]
