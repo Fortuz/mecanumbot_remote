@@ -174,8 +174,8 @@ def main():
     rclpy.init()
     qos = QoSProfile(depth=0)
     node = rclpy.create_node('mecanumbot_keyboard')
-    pub_vel = node.create_publisher(Twist, 'mecanumbot/cmd_vel', qos)
-    pub_accessory = node.create_publisher(AccessMotorCmd, 'mecanumbot/cmd_accessory_pos', qos)
+    pub_vel = node.create_publisher(Twist, '/cmd_vel', qos)
+    pub_accessory = node.create_publisher(AccessMotorCmd, '/cmd_accessory_pos', qos)
     status = 0
     target_linear_x_velocity  = 0.0
     target_linear_y_velocity  = 0.0

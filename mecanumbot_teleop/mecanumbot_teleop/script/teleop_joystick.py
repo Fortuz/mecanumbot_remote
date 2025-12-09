@@ -70,8 +70,8 @@ class MecanumbotJoyTeleop(Node):
         super().__init__('mecanumbot_joystick')
 
         qos = QoSProfile(depth=10)
-        self.pub_vel = self.create_publisher(Twist, '/mecanumbot/cmd_vel', qos)
-        self.pub_accessory = self.create_publisher(AccessMotorCmd, '/mecanumbot/cmd_accessory_pos', qos)
+        self.pub_vel = self.create_publisher(Twist, '/cmd_vel', qos)
+        self.pub_accessory = self.create_publisher(AccessMotorCmd, '/cmd_accessory_pos', qos)
 
         # Parameters: allow remapping of axes/buttons if needed
         self.declare_parameter('axes.linear_x', 1)
