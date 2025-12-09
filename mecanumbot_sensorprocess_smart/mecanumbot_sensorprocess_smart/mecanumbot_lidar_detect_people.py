@@ -5,6 +5,9 @@ from rclpy.node import Node
 import os
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Point, Pose, PoseStamped, PoseArray
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
+import tf2_geometry_msgs
 from rclpy.qos import qos_profile_sensor_data
 from visualization_msgs.msg import Marker
 import torch
@@ -31,7 +34,7 @@ class DrSpaamNode(Node):
 
         # ---- Declare parameters ----
         self.declare_parameter("weight_file", "dr_spaam_5_on_frog.pth")
-        self.declare_parameter("conf_thresh", 0.35)
+        self.declare_parameter("conf_thresh", 0.25)
         self.declare_parameter("stride", 1)
         self.declare_parameter("scan_topic", "scan")
         self.declare_parameter("detections_topic", "dets")
@@ -46,6 +49,9 @@ class DrSpaamNode(Node):
         pkg_share = get_package_share_directory('mecanumbot_sensorprocess_smart')
         weight_file = self.get_parameter("weight_file").value
         weight_path = os.path.join(pkg_share, 'models', weight_file)
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer,self)
 
         if not os.path.isfile(weight_path):
             self.get_logger().error(f"DR-SPAAM model file not found: {weight_path}")
@@ -103,19 +109,38 @@ class DrSpaamNode(Node):
 
         # Publish PoseArray
         dets_msg = self._dets_to_pose_array(dets_xy)
+        #self.get_logger().info(f'Detected: {dets_xy}')
         dets_msg.header = msg.header
         self.dets_pub.publish(dets_msg)
         if self.leading_mode and len(dets_msg.poses) > 0:
-                ps_msg = PoseStamped()
-                ps_msg.header = msg.header
-                ps_msg.pose = dets_msg.poses[0]
-                self.subject_pub.publish(ps_msg)
+            pose_out = self._parse_subject_pose(dets_msg)
+            if pose_out is not None:
+                self.subject_pub.publish(pose_out)
+            
         # Publish RViz marker
         marker_msg = self._dets_to_marker(dets_xy)
         marker_msg.header = msg.header
         self.rviz_pub.publish(marker_msg)
 
-
+    def _parse_subject_pose(self,dets_msg):
+        ps_msg = Pose()
+        ps_msg.position.x = dets_msg.poses[0].position.x
+        ps_msg.position.y = dets_msg.poses[0].position.y
+        ps_msg.position.z = 0.0
+        try:
+            transform = self.tf_buffer.lookup_transform(
+                                                    'map',
+                                                    'mecanumbot/base_scan',
+                                                    rclpy.time.Time(),  # Latest available
+                                                )
+            pose_out = PoseStamped()
+            pose_out.header.frame_id = 'map'
+            pose_out.pose = tf2_geometry_msgs.do_transform_pose(ps_msg, transform)
+            return pose_out
+        except Exception as e:
+            self.get_logger().error(f"TF transform error: {e}")
+            return None
+        
     def _dets_to_pose_array(self, dets_xy):
         msg = PoseArray()
         for xy in dets_xy:
