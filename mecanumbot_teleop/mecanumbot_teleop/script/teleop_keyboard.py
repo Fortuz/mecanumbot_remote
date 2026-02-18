@@ -271,11 +271,12 @@ def main():
                 control_angular_velocity,
                 target_angular_velocity,
                 (ANG_VEL_STEP_SIZE / 2.0))
-            twist = create_twistcmd(control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity)
-            pub_vel.publish(twist)
-            accessory_motor_cmd = create_poscmd(control_access_pos[0],control_access_pos[1],control_access_pos[2])
-            pub_accessory.publish(accessory_motor_cmd)
+            
             if key_handled:
+                twist = create_twistcmd(control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity)
+                pub_vel.publish(twist)
+                accessory_motor_cmd = create_poscmd(control_access_pos[0],control_access_pos[1],control_access_pos[2])
+                pub_accessory.publish(accessory_motor_cmd)
                 key_handled = False
                 time.sleep(SLEEP_TIME)
     except Exception as e:

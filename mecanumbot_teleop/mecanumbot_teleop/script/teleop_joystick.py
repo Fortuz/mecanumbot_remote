@@ -44,7 +44,7 @@ LIN_VEL_STEP_SIZE = 0.01
 ANG_VEL_STEP_SIZE = 0.05
 SENSITIVITY_THRESH = 0.05
 
-PUBLISH_HZ = 5.0
+PUBLISH_HZ = 3.0
 
 
 def make_simple_profile(output_vel, input_vel, slop):
