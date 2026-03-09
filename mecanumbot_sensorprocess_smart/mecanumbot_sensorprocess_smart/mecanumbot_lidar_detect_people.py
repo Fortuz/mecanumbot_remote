@@ -14,13 +14,17 @@ import torch
 
 
 
-# Monkey-patch torch.load globally:
+# ---- 1. Determine Device Dynamically ----
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# ---- 2. Dynamic Monkey-patch for torch.load ----
 _original_torch_load = torch.load
 
-def cpu_load(path, *args, **kwargs):
-    return _original_torch_load(path, map_location=torch.device("cpu"))
+def processor_load(path, *args, **kwargs):
+    # Map to the dynamically detected device (cuda or cpu)
+    return _original_torch_load(path, map_location=DEVICE)
 
-torch.load = cpu_load
+
 
 from dr_spaam.detector import Detector
 from ament_index_python.packages import get_package_share_directory
@@ -31,10 +35,12 @@ class DrSpaamNode(Node):
     
     def __init__(self):
         super().__init__("mecanumbot_lidar_detect_people")
-
+        #Set processor type
+        torch.load = processor_load
+        self.get_logger().info(f'DEVICE: {DEVICE}')
         # ---- Declare parameters ----
         self.declare_parameter("weight_file", "dr_spaam_5_on_frog.pth")
-        self.declare_parameter("conf_thresh", 0.25)
+        self.declare_parameter("conf_thresh", 0.85)
         self.declare_parameter("stride", 1)
         self.declare_parameter("scan_topic", "scan")
         self.declare_parameter("detections_topic", "dets")
@@ -49,6 +55,7 @@ class DrSpaamNode(Node):
         pkg_share = get_package_share_directory('mecanumbot_sensorprocess_smart')
         weight_file = self.get_parameter("weight_file").value
         weight_path = os.path.join(pkg_share, 'models', weight_file)
+        self.pose_out = None
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer,self)
@@ -113,9 +120,10 @@ class DrSpaamNode(Node):
         dets_msg.header = msg.header
         self.dets_pub.publish(dets_msg)
         if self.leading_mode and len(dets_msg.poses) > 0:
-            pose_out = self._parse_subject_pose(dets_msg)
-            if pose_out is not None:
-                self.subject_pub.publish(pose_out)
+            self.pose_out = self._parse_subject_pose(dets_msg)
+
+        if self.pose_out is not None:
+            self.subject_pub.publish(self.pose_out)
             
         # Publish RViz marker
         marker_msg = self._dets_to_marker(dets_xy)
@@ -134,6 +142,7 @@ class DrSpaamNode(Node):
                                                     rclpy.time.Time(),  # Latest available
                                                 )
             pose_out = PoseStamped()
+            pose_out.header.stamp = self.get_clock().now().to_msg()
             pose_out.header.frame_id = 'map'
             pose_out.pose = tf2_geometry_msgs.do_transform_pose(ps_msg, transform)
             return pose_out
