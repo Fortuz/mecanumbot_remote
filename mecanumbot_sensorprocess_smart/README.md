@@ -3,7 +3,7 @@
 In this folder, nodes are situated which extract information from the mecanumbot's on-board sensors
 
 ## Nodes:
-
+    - mecanumbot_lidar_detect_people: extracts people from LiDAR data based on leg detections
 #### External nodes:
 
 - Package containing the dr_spaam ros1 syntax and model: https://github.com/VisualComputingInstitute/DR-SPAAM-Detector/tree/master

@@ -7,9 +7,16 @@ from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Point, Pose, PoseStamped, PoseArray
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from scipy.interpolate import interp1d
+from scipy.ndimage import median_filter
 import tf2_geometry_msgs
 from rclpy.qos import qos_profile_sensor_data
 from visualization_msgs.msg import Marker
+from scipy.optimize import linear_sum_assignment
+from filterpy.kalman import KalmanFilter
+from dr_spaam.detector import Detector
+from ament_index_python.packages import get_package_share_directory 
+from rclpy.executors import MultiThreadedExecutor
 import torch
 
 
@@ -24,10 +31,96 @@ def processor_load(path, *args, **kwargs):
     # Map to the dynamically detected device (cuda or cpu)
     return _original_torch_load(path, map_location=DEVICE)
 
+class Track:
+    """Represents a single tracked person."""
+    def __init__(self, detection, track_id):
+        self.track_id = track_id
+        # State: [x, y, vx, vy] | Measurement: [x, y]
+        self.kf = KalmanFilter(dim_x=4, dim_z=2)
+        self.kf.x = np.array([detection[0], detection[1], 0.0, 0.0]).reshape(4, 1)
+        
+        # State transition matrix (assuming ~10Hz LiDAR, dt = 0.1)
+        dt = 0.1 
+        self.kf.F = np.array([[1, 0, dt, 0],
+                              [0, 1, 0, dt],
+                              [0, 0, 1, 0],
+                              [0, 0, 0, 1]])
+        
+        # Measurement function (we only measure x, y)
+        self.kf.H = np.array([[1, 0, 0, 0],
+                              [0, 1, 0, 0]])
+        
+        # Tuning matrices - adjust R if your LiDAR is extremely noisy
+        self.kf.P *= 10.0      # Initial uncertainty
+        self.kf.R *= 0.5       # Measurement noise (LiDAR accuracy)
+        self.kf.Q *= 0.01      # Process noise (how erratically people move)
+        
+        self.time_since_update = 0
+        self.hits = 1
+
+    def predict(self):
+        self.kf.predict()
+        self.time_since_update += 1
+        return self.kf.x[:2].reshape(-1)
+
+    def update(self, detection):
+        self.kf.update(detection.reshape(2, 1))
+        self.time_since_update = 0
+        self.hits += 1
+
+class MultiObjectTracker:
+    """Manages all active tracks and matches new detections."""
+    def __init__(self, max_distance=0.5, max_missed_frames=4, min_hits=2):
+        self.max_distance = max_distance        # Max meters a person can move between frames
+        self.max_missed_frames = max_missed_frames # Frames to keep track alive without seeing them
+        self.min_hits = min_hits                # Frames a track must exist before being published
+        self.tracks = []
+        self.next_id = 0
+
+    def update(self, detections):
+        """
+        Takes raw [N, 2] detections, updates tracks, 
+        and returns validated [M, 2] tracked positions.
+        """
+        # 1. Predict next positions for all tracks
+        predicted_positions = np.array([track.predict() for track in self.tracks])
+        
+        matched_indices = []
+        unmatched_detections = list(range(len(detections)))
+        unmatched_tracks = list(range(len(self.tracks)))
+
+        # 2. Match detections to tracks using Hungarian algorithm
+        if len(self.tracks) > 0 and len(detections) > 0:
+            cost_matrix = np.linalg.norm(predicted_positions[:, None, :] - detections[None, :, :], axis=2)
+            track_indices, det_indices = linear_sum_assignment(cost_matrix)
+
+            for t_idx, d_idx in zip(track_indices, det_indices):
+                if cost_matrix[t_idx, d_idx] < self.max_distance:
+                    matched_indices.append((t_idx, d_idx))
+                    unmatched_detections.remove(d_idx)
+                    unmatched_tracks.remove(t_idx)
+
+        # 3. Update matched tracks with new measurements
+        for t_idx, d_idx in matched_indices:
+            self.tracks[t_idx].update(detections[d_idx])
+
+        # 4. Create new tracks for unmatched detections
+        for d_idx in unmatched_detections:
+            self.tracks.append(Track(detections[d_idx], self.next_id))
+            self.next_id += 1
+
+        # 5. Remove dead tracks (missed for too many frames)
+        self.tracks = [t for t in self.tracks if t.time_since_update <= self.max_missed_frames]
+
+        # 6. Return only "mature" tracks to avoid publishing random 1-frame noise flashes
+        valid_positions = []
+        for t in self.tracks:
+            if t.hits >= self.min_hits:
+                valid_positions.append(t.kf.x[:2].reshape(-1))
+
+        return np.array(valid_positions) if len(valid_positions) > 0 else np.empty((0, 2))
 
 
-from dr_spaam.detector import Detector
-from ament_index_python.packages import get_package_share_directory
 
 
 class DrSpaamNode(Node):
@@ -71,6 +164,8 @@ class DrSpaamNode(Node):
             gpu=False,   # CPU-compatible
             stride=self.stride
         )
+        # Initialize the tracker here
+        self.tracker = MultiObjectTracker(max_distance=0.5, max_missed_frames=3, min_hits=2)
         # ---- Publishers ----
         self.dets_pub = self.create_publisher(PoseArray,
                                               self.get_parameter("detections_topic").value,
@@ -103,30 +198,32 @@ class DrSpaamNode(Node):
         scan = np.array(msg.ranges)
         #self.get_logger().info(f"############ Raw Scan size: {len(scan)}##########")
         #self.get_logger().info(f'Scan params: {msg.angle_min}, {msg.angle_increment}, {msg.angle_max}')
-        scan = fill_with_neighbor_average(scan)
-        scan = interpolate_scan(scan,expected_points)
-        #self.get_logger().info(f"############ Scan size: {scan.shape}##########")
-        dets_xy, dets_cls, _ = self.detector(scan) # fails if scan size does not match the first recieved
+        scan = preprocess_lidar(scan, target_len=expected_points, max_range=10.0)
+        # ... (your existing preprocessing code) ...
+        dets_xy, dets_cls, _ = self.detector(scan)
 
         conf_mask = (dets_cls >= self.conf_thresh).reshape(-1)
 
         dets_xy = dets_xy[conf_mask]
         dets_cls = dets_cls[conf_mask]
         dets_xy = -1 * dets_xy
+        
+        # Filter the raw network detections through the Kalman tracker
+        tracked_xy = self.tracker.update(dets_xy)
 
-        # Publish PoseArray
-        dets_msg = self._dets_to_pose_array(dets_xy)
-        #self.get_logger().info(f'Detected: {dets_xy}')
+        # Publish PoseArray using the TRACKED positions, not the raw ones
+        dets_msg = self._dets_to_pose_array(tracked_xy) 
         dets_msg.header = msg.header
         self.dets_pub.publish(dets_msg)
+
         if self.leading_mode and len(dets_msg.poses) > 0:
             self.pose_out = self._parse_subject_pose(dets_msg)
 
         if self.pose_out is not None:
             self.subject_pub.publish(self.pose_out)
             
-        # Publish RViz marker
-        marker_msg = self._dets_to_marker(dets_xy)
+        # Publish RViz marker using the TRACKED positions
+        marker_msg = self._dets_to_marker(tracked_xy) 
         marker_msg.header = msg.header
         self.rviz_pub.publish(marker_msg)
 
@@ -193,53 +290,49 @@ class DrSpaamNode(Node):
 
         return msg
 
-def interpolate_scan(scan, target_len=250):
-    x_old = np.linspace(0, 1, len(scan))
-    x_new = np.linspace(0, 1, target_len)
-    return np.interp(x_new, x_old, scan)
-
-def fill_with_neighbor_average(scan):
+def preprocess_lidar(scan, target_len=240, max_range=10.0):
+    """
+    Cleans and resizes LiDAR data using depth-safe mathematics 
+    to prevent mid-air artifacts.
+    """
     scan = np.array(scan, dtype=float)
 
-    # Mark invalid values
-    invalid = (scan == 0.0) | np.isinf(scan) | np.isnan(scan)
+    # 1. Handle Invalid Points Safely
+    # Zeros, infs, and NaNs usually mean "no return" (aimed at the sky or too far).
+    # Setting them to a far distance (like 10m) pushes them to the background 
+    # so DR-SPAAM ignores them.
+    invalid = (scan <= 0.01) | np.isinf(scan) | np.isnan(scan)
+    scan[invalid] = max_range
 
-    # Copy for output
-    filled = scan.copy()
+    # 2. Apply a Median Filter
+    # A size=3 median filter removes "salt and pepper" noise (e.g., a single 
+    # random 0.0 reading in the middle of a wall) without blurring sharp edges.
+    scan = median_filter(scan, size=3)
 
-    for i in np.where(invalid)[0]:
-        # Search left
-        left = i - 1
-        while left >= 0 and invalid[left]:
-            left -= 1
+    # 3. Resize using Nearest Neighbor (The Critical Fix)
+    # This snaps interpolated points to the nearest physical object,
+    # rather than floating them in empty space.
+    if len(scan) != target_len:
+        x_old = np.linspace(0, 1, len(scan))
+        x_new = np.linspace(0, 1, target_len)
+        
+        # kind='nearest' ensures no fake depth gradients are created
+        interpolator = interp1d(x_old, scan, kind='nearest')
+        scan = interpolator(x_new)
 
-        # Search right
-        right = i + 1
-        while right < len(scan) and invalid[right]:
-            right += 1
-
-        left_val = scan[left] if left >= 0 else None
-        right_val = scan[right] if right < len(scan) else None
-
-        # Compute replacement
-        if left_val is not None and right_val is not None:
-            filled[i] = (left_val + right_val) / 2.0
-        elif left_val is not None:
-            filled[i] = left_val
-        elif right_val is not None:
-            filled[i] = right_val
-        else:
-            # All values invalid — fallback to 0 or any default
-            filled[i] = 0.0
-
-    return filled
+    return scan
 
 def main(args=None):
     rclpy.init(args=args)
     node = DrSpaamNode()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+
+    try:
+        executor.spin()
+    except:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == "__main__":
