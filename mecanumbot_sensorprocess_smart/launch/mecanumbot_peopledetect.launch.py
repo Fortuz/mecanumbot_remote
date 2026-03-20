@@ -7,7 +7,7 @@ from ament_index_python.packages import get_package_share_directory
 
 yaml_file = os.path.join(
         get_package_share_directory('mecanumbot_sensorprocess_smart'),
-        'config',
+    'param',
         'lidar_peopledetect_config.yaml'
     )
 print(yaml_file)

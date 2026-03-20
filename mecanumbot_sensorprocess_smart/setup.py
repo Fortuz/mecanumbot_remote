@@ -11,6 +11,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/param',   glob('param/*.yaml')),
         ('share/' + package_name + '/config',  glob('config/*')),
         ('share/' + package_name + '/models',  glob('models/*')),
         ('share/' + package_name + '/launch',  glob('launch/*')),

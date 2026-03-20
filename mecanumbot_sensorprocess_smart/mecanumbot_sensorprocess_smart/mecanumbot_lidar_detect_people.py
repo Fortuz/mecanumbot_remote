@@ -57,6 +57,8 @@ class Track:
         
         self.time_since_update = 0
         self.hits = 1
+        self.has_moved = False
+        self.speed_thresh = 0.1  # Minimum m/s to be considered "human"
 
     def predict(self):
         self.kf.predict()
@@ -67,6 +69,15 @@ class Track:
         self.kf.update(detection.reshape(2, 1))
         self.time_since_update = 0
         self.hits += 1
+        
+        # Extract velocity from the Kalman state [x, y, vx, vy]
+        vx = self.kf.x[2, 0]
+        vy = self.kf.x[3, 0]
+        speed = np.hypot(vx, vy)
+        
+        # If the track ever moves faster than the threshold, lock it as a valid moving object
+        if speed > self.speed_thresh:
+            self.has_moved = True
 
 class MultiObjectTracker:
     """Manages all active tracks and matches new detections."""
@@ -114,8 +125,10 @@ class MultiObjectTracker:
 
         # 6. Return only "mature" tracks to avoid publishing random 1-frame noise flashes
         valid_positions = []
+        valid_positions = []
         for t in self.tracks:
-            if t.hits >= self.min_hits:
+            # Must exist for a few frames AND must have moved at least once
+            if t.hits >= self.min_hits and t.has_moved:
                 valid_positions.append(t.kf.x[:2].reshape(-1))
 
         return np.array(valid_positions) if len(valid_positions) > 0 else np.empty((0, 2))
@@ -133,7 +146,7 @@ class DrSpaamNode(Node):
         self.get_logger().info(f'DEVICE: {DEVICE}')
         # ---- Declare parameters ----
         self.declare_parameter("weight_file", "dr_spaam_5_on_frog.pth")
-        self.declare_parameter("conf_thresh", 0.85)
+        self.declare_parameter("conf_thresh", 0.6)
         self.declare_parameter("stride", 1)
         self.declare_parameter("scan_topic", "scan")
         self.declare_parameter("detections_topic", "dets")
