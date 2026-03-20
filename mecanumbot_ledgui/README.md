@@ -13,9 +13,9 @@ ROS 2 desktop GUI package for controlling robot LEDs through service calls.
 
 ## File functions
 
-| File or folder | Function |
-|----------------|----------|
-| mecanumbot_ledgui/mecanumbot_ledgui.py | GUI application and ROS2 service client logic. |
-| launch/mecanumbot_ledgui.launch.py | Launches the GUI node executable. |
-| configs/led_configs.json | Persistent user-saved LED configurations. |
-| setup.py | Installs launch/config assets and console entry point. |
+| File or folder                         | Function                                               |
+| -------------------------------------- | ------------------------------------------------------ |
+| mecanumbot_ledgui/mecanumbot_ledgui.py | GUI application and ROS2 service client logic.         |
+| launch/mecanumbot_ledgui.launch.py     | Launches the GUI node executable.                      |
+| configs/led_configs.json               | Persistent user-saved LED configurations.              |
+| setup.py                               | Installs launch/config assets and console entry point. |

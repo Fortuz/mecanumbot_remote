@@ -4,31 +4,31 @@ Remote-compute ROS 2 packages for controlling and extending mecanumbot from an e
 
 ## Folder functions
 
-| Folder | Function |
-|------|----------|
-| mecanumbot_teleop | Manual control nodes (keyboard and joystick) publishing cmd_vel and accessory commands. |
-| mecanumbot_ledgui | Desktop GUI node for LED control using ROS services. |
-| mecanumbot_sensorprocess_smart | LiDAR people detection and tracking node using DR-SPAAM. |
+| Folder                         | Function                                                                                |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| mecanumbot_teleop              | Manual control nodes (keyboard and joystick) publishing cmd_vel and accessory commands. |
+| mecanumbot_ledgui              | Desktop GUI node for LED control using ROS services.                                    |
+| mecanumbot_sensorprocess_smart | LiDAR people detection and tracking node using DR-SPAAM.                                |
 
 ## Node interfaces at repository root
 
 ### Publishers
 
-| Topic | Data type | Function |
-|-------|-----------|----------|
-| None | - | No nodes are implemented in the repository root folder. |
+| Topic | Data type | Function                                                |
+| ----- | --------- | ------------------------------------------------------- |
+| None  | -         | No nodes are implemented in the repository root folder. |
 
 ### Subscribers
 
-| Topic | Data type | Processing |
-|-------|-----------|------------|
-| None | - | No nodes are implemented in the repository root folder. |
+| Topic | Data type | Processing                                              |
+| ----- | --------- | ------------------------------------------------------- |
+| None  | -         | No nodes are implemented in the repository root folder. |
 
 ### Services handled
 
-| Service | Type | Behavior |
-|---------|------|----------|
-| None | - | No nodes are implemented in the repository root folder. |
+| Service | Type | Behavior                                                |
+| ------- | ---- | ------------------------------------------------------- |
+| None    | -    | No nodes are implemented in the repository root folder. |
 
 ## Quick run examples
 
