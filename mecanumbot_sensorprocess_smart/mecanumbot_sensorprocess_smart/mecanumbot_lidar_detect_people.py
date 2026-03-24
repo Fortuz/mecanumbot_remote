@@ -162,6 +162,7 @@ class DrSpaamNode(Node):
         weight_file = self.get_parameter("weight_file").value
         weight_path = os.path.join(pkg_share, 'models', weight_file)
         self.pose_out = None
+        self.last_pose_out = None
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer,self)
@@ -209,10 +210,7 @@ class DrSpaamNode(Node):
             self.detector.set_laser_spec(angle_inc=0.026, num_pts=expected_points)
 
         scan = np.array(msg.ranges)
-        #self.get_logger().info(f"############ Raw Scan size: {len(scan)}##########")
-        #self.get_logger().info(f'Scan params: {msg.angle_min}, {msg.angle_increment}, {msg.angle_max}')
         scan = preprocess_lidar(scan, target_len=expected_points, max_range=10.0)
-        # ... (your existing preprocessing code) ...
         dets_xy, dets_cls, _ = self.detector(scan)
 
         conf_mask = (dets_cls >= self.conf_thresh).reshape(-1)
@@ -233,7 +231,11 @@ class DrSpaamNode(Node):
             self.pose_out = self._parse_subject_pose(dets_msg)
 
         if self.pose_out is not None:
+            self.last_pose_out = self.pose_out
             self.subject_pub.publish(self.pose_out)
+        else:
+            if self.last_pose_out is not None:
+                self.subject_pub.publish(self.last_pose_out)
             
         # Publish RViz marker using the TRACKED positions
         marker_msg = self._dets_to_marker(tracked_xy) 
@@ -310,21 +312,16 @@ def preprocess_lidar(scan, target_len=240, max_range=10.0):
     """
     scan = np.array(scan, dtype=float)
 
-    # 1. Handle Invalid Points Safely
-    # Zeros, infs, and NaNs usually mean "no return" (aimed at the sky or too far).
-    # Setting them to a far distance (like 10m) pushes them to the background 
-    # so DR-SPAAM ignores them.
+    # Handle Invalid Points Safely
+    # Zeros, infs, and NaNs usually mean "no return", the light emmitted did not arrive back to the sensor.
     invalid = (scan <= 0.01) | np.isinf(scan) | np.isnan(scan)
     scan[invalid] = max_range
 
-    # 2. Apply a Median Filter
-    # A size=3 median filter removes "salt and pepper" noise (e.g., a single 
-    # random 0.0 reading in the middle of a wall) without blurring sharp edges.
+    # Apply a Median Filter
+    # A size=3 median filter removes "salt and pepper" noise
     scan = median_filter(scan, size=3)
 
-    # 3. Resize using Nearest Neighbor (The Critical Fix)
-    # This snaps interpolated points to the nearest physical object,
-    # rather than floating them in empty space.
+    # Resize using Nearest Neighbor - snaps interpolated points to the nearest physical object,
     if len(scan) != target_len:
         x_old = np.linspace(0, 1, len(scan))
         x_new = np.linspace(0, 1, target_len)
