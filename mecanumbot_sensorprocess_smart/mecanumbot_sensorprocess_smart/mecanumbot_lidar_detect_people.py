@@ -135,7 +135,7 @@ class DrSpaamNode(Node):
         self.declare_parameter("detections_topic", "dets")
         self.declare_parameter("rviz_topic", "dets_marker")
         self.declare_parameter("leading_mode", True)
-        self.declare_parameter("obstacle_exclusion_radius", 0.70) 
+        self.declare_parameter("obstacle_exclusion_radius", 0.35) 
         self.declare_parameter("detection_frame", "base_scan")
 
         self.weight_file = self.get_parameter("weight_file").value
@@ -303,7 +303,7 @@ class DrSpaamNode(Node):
         # ----------------------------------------
         # --- NEW: Apply the Static Map Filter --
         dets_xy = self._filter_detections_by_map(dets_xy, msg.header.frame_id)
-        self.get_logger().info(f"Map: {self.map_data.shape if self.map_data is not None else 'None'}, {np.max(self.map_data) if self.map_data is not None else 'None'}, Dets after map filter: {dets_xy.shape[0]}")
+        #self.get_logger().info(f"Map: {self.map_data.shape if self.map_data is not None else 'None'}, {np.max(self.map_data) if self.map_data is not None else 'None'}, Dets after map filter: {dets_xy.shape[0]}")
         # ----------------------------------------
 
         # Filter the raw network detections through the Kalman tracker
