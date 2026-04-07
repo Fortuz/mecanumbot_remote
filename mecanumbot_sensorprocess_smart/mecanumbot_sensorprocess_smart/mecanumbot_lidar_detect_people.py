@@ -129,13 +129,13 @@ class DrSpaamNode(Node):
         self.get_logger().info(f'DEVICE: {DEVICE}')
         
         self.declare_parameter("weight_file", "dr_spaam_5_on_frog.pth")
-        self.declare_parameter("conf_thresh", 0.6)
+        self.declare_parameter("conf_thresh", 0.45)
         self.declare_parameter("stride", 1)
         self.declare_parameter("scan_topic", "scan")
         self.declare_parameter("detections_topic", "dets")
         self.declare_parameter("rviz_topic", "dets_marker")
         self.declare_parameter("leading_mode", True)
-        self.declare_parameter("obstacle_exclusion_radius", 0.35) 
+        self.declare_parameter("obstacle_exclusion_radius", 0.3) 
         self.declare_parameter("detection_frame", "base_scan")
 
         self.weight_file = self.get_parameter("weight_file").value
@@ -197,7 +197,7 @@ class DrSpaamNode(Node):
             durability=DurabilityPolicy.TRANSIENT_LOCAL,
             history=HistoryPolicy.KEEP_LAST
         )
-        self.map_sub = self.create_subscription(OccupancyGrid, '/map', self.map_callback, map_qos)
+        self.map_sub = self.create_subscription(OccupancyGrid, '/keepout_filter_mask', self.map_callback, map_qos)
 
         self.get_logger().info("DR-SPAAM ROS2 detector node started.")
 

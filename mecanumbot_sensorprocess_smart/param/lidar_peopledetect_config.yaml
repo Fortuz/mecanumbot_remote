@@ -1,7 +1,7 @@
 mecanumbot_lidar_detect_people:
   ros__parameters:
     weight_file: dr_spaam_5_on_frog.pth
-    conf_thresh: 0.6
+    conf_thresh: 0.45
     stride: 1
     scan_topic: scan
     detections_topic: dr_spaam/dets
