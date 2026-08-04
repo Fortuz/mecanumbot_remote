@@ -5,7 +5,6 @@ ROS 2 teleoperation package for controlling the mecanumbot base and accessory ac
 This package provides two executable nodes:
 
 - `mecanumbot_keyboard`
-- `mecanumbot_joystick`
 
 Both publish the same pair of topics, so only one should be run at a time.
 
@@ -49,67 +48,34 @@ Both publish the same pair of topics, so only one should be run at a time.
 | Camera position range  | 2.0 to 8.6                         |
 | Gripper position range | 1.6 to 8.54 (front / neutral 5.12) |
 
-## Node: `mecanumbot_joystick`
+## Joystick teleoperation has moved
 
-### Publishers
+The `mecanumbot_joystick` node used to live here. It is now
+`mecanumbot_joy` in the `mecanumbot` repository, running **on the robot**
+rather than on the operator PC.
 
-| Topic              | Data type                          | Function                                                     |
-| ------------------ | ---------------------------------- | ------------------------------------------------------------ |
-| /cmd_vel           | geometry_msgs/msg/Twist            | Publishes base velocity commands derived from joystick axes. |
-| /cmd_accessory_pos | mecanumbot_msgs/msg/AccessMotorCmd | Publishes accessory positions from joystick button actions.  |
+It is not a straight port. The old node hardcoded which button did what and
+only let you remap the *indices*; the replacement is driven by a YAML profile
+in `mecanumbot_description/config/joystick/`, editable from the robot's web
+GUI, and it also replaced the separate controller/mapping stack that used to
+live in `mecanumbot_gui`.
 
-### Subscribers
+```bash
+# on the robot
+ros2 launch mecanumbot_joy joy_teleop.launch.py
+```
 
-| Topic | Data type           | Processing                                                                             |
-| ----- | ------------------- | -------------------------------------------------------------------------------------- |
-| joy   | sensor_msgs/msg/Joy | Reads controller axes/buttons, applies deadzone and mappings, updates command targets. |
-
-### Button map (Xbox-style defaults)
-
-| Input       | Effect                                   |
-| ----------- | ---------------------------------------- |
-| Left stick  | Linear x (axis 1) and linear y (axis 0). |
-| Right stick | Angular z (axis 3).                      |
-| `Y` / `A`   | Camera to max / mid position.            |
-| `X` / `B`   | Open / close gripper.                    |
-| `Back`      | Emergency stop — zeroes all velocities.  |
-
-### Parameters
-
-| Parameter                                  | Default                     | Function                                          |
-| ------------------------------------------ | --------------------------- | ------------------------------------------------- |
-| `axes.linear_x`                            | `1`                         | Joy axis index for linear x.                      |
-| `axes.linear_y`                            | `0`                         | Joy axis index for linear y.                      |
-| `axes.angular`                             | `3`                         | Joy axis index for angular z.                     |
-| `buttons.A` / `.B` / `.X` / `.Y` / `.Back` | `0` / `1` / `2` / `3` / `6` | Button indices in `joy.buttons`.                  |
-| `sensitivity.deadzone`                     | `0.05`                      | Axis values below this are treated as zero.       |
-| `smoothing.lin_step`                       | `0.01`                      | Linear ramp step (currently unused — see below).  |
-| `smoothing.ang_step`                       | `0.05`                      | Angular ramp step (currently unused — see below). |
-| `max_lin_vel`                              | `0.234`                     | Axis value `1.0` maps to this linear velocity.    |
-| `max_ang_vel`                              | `1.092`                     | Axis value `1.0` maps to this angular velocity.   |
-| `publish_hz`                               | `3.0`                       | Timer rate for publishing both topics.            |
-
-### Behavior
-
-- Axis and button indices are parameters, so other controller layouts can be used
-  without code changes; out-of-range indices are read safely as `0`.
-- Axes map linearly onto the velocity limits after the deadzone is applied.
-- Ramp smoothing is commented out in `timer_publish` — the control velocity is set
-  directly from the target, so the `smoothing.*` parameters currently have no effect.
-- Both topics are republished on every timer tick, not only when the joystick moves.
+This package keeps the keyboard node, which still runs from the operator PC.
 
 ## File functions
 
 | File or folder                              | Function                                                                                |
 | ------------------------------------------- | --------------------------------------------------------------------------------------- |
-| mecanumbot_teleop/script/teleop_keyboard.py | Keyboard teleoperation executable implementation.                                       |
-| mecanumbot_teleop/script/teleop_joystick.py | Joystick teleoperation executable implementation.                                       |
-| launch/launch_joy_teleop.launch.py          | Starts `joy_node` (`/dev/input/js0`, deadzone 0.05) and `mecanumbot_joystick` together. |
-| setup.py                                    | Installs launch files and both executable entry points.                                 |
+| mecanumbot_teleop/script/teleop_keyboard.py | Keyboard teleoperation executable implementation. |
+| setup.py                                    | Installs the `mecanumbot_keyboard` entry point.   |
 
 ## Run
 
 ```bash
 ros2 run mecanumbot_teleop mecanumbot_keyboard
-ros2 launch mecanumbot_teleop launch_joy_teleop.launch.py
 ```

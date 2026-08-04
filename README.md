@@ -8,7 +8,7 @@ graph and are not meant to run on the robot's Jetson.
 
 | Package | Type | Purpose |
 | --- | --- | --- |
-| `mecanumbot_teleop` | Python (`ament_python`) | Manual control nodes — keyboard and joystick — publishing `/cmd_vel` and `/cmd_accessory_pos`. |
+| `mecanumbot_teleop` | Python (`ament_python`) | Keyboard teleoperation, publishing `/cmd_vel` and `/cmd_accessory_pos`. Joystick control moved onto the robot as `mecanumbot_joy`. |
 | `mecanumbot_ledgui` | Python (`ament_python`) | Tkinter desktop GUI that drives the robot LEDs through the `set_led_status` / `get_led_status` services. |
 
 ## Executables
@@ -16,7 +16,6 @@ graph and are not meant to run on the robot's Jetson.
 | Executable | Package | ROS node name | Interfaces |
 | --- | --- | --- | --- |
 | `mecanumbot_keyboard` | `mecanumbot_teleop` | `mecanumbot_keyboard` | Publishes `/cmd_vel`, `/cmd_accessory_pos`. |
-| `mecanumbot_joystick` | `mecanumbot_teleop` | `mecanumbot_joystick` | Subscribes `joy`; publishes `/cmd_vel`, `/cmd_accessory_pos`. |
 | `mecanumbot_ledgui` | `mecanumbot_ledgui` | `mecanumbot_ledgui_client` | Service client for `set_led_status`, `get_led_status`. |
 
 No nodes are implemented at the repository root — it only groups the two packages.
@@ -24,9 +23,8 @@ No nodes are implemented at the repository root — it only groups the two packa
 ## Dependencies
 
 Both packages depend on `rclpy` and `mecanumbot_msgs`. `mecanumbot_teleop` also uses
-`geometry_msgs` and `sensor_msgs/Joy` (the joystick launch file starts the standard
-`joy` package's `joy_node`). `mecanumbot_ledgui` needs a working Tkinter install
-(`python3-tk`) and a display.
+`geometry_msgs`. `mecanumbot_ledgui` needs a working Tkinter install (`python3-tk`)
+and a display.
 
 ## Build
 
@@ -42,9 +40,6 @@ source install/setup.bash
 # keyboard teleop
 ros2 run mecanumbot_teleop mecanumbot_keyboard
 
-# joystick teleop (also starts joy_node on /dev/input/js0)
-ros2 launch mecanumbot_teleop launch_joy_teleop.launch.py
-
 # LED GUI
 ros2 launch mecanumbot_ledgui mecanumbot_ledgui.launch.py
 ```
@@ -52,11 +47,15 @@ ros2 launch mecanumbot_ledgui mecanumbot_ledgui.launch.py
 The LED GUI needs `mecanumbot_led`'s service node running on the robot, otherwise
 the status bar reports the services as unavailable.
 
+Joystick control is no longer run from here. It is `mecanumbot_joy` on the robot,
+configured through YAML profiles in `mecanumbot_description/config/joystick/` and
+editable from the robot's web GUI at `http://<robot>:8080/joystick`.
+
 ## Repository structure
 
 | Path | Function |
 | --- | --- |
-| `mecanumbot_teleop/` | Keyboard and joystick teleoperation nodes plus the joy launch file. |
+| `mecanumbot_teleop/` | Keyboard teleoperation node. |
 | `mecanumbot_ledgui/` | LED GUI node, its launch file, and the saved-preset JSON. |
 | `LICENSE` | Apache-2.0. |
 

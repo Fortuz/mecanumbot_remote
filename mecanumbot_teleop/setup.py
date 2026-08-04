@@ -35,7 +35,6 @@ setup(
     entry_points={
         'console_scripts': [
             'mecanumbot_keyboard = mecanumbot_teleop.script.teleop_keyboard:main',
-            'mecanumbot_joystick = mecanumbot_teleop.script.teleop_joystick:main'
         ],
     },
 )
