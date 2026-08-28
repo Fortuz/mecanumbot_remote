@@ -1,0 +1,39 @@
+mecanumbot_deep3r_client_node:
+  ros__parameters:
+    # 127.0.0.1, not nipg36's own address: the robot has no route to
+    # 10.128.17.196. mecanumbot-deep3r-tunnel.service (in
+    # RoboCamStreamProcessing/link) forwards the server's port to here.
+    server: tcp://127.0.0.1:5555
+
+    # The standalone client file, deployed from RoboCamStreamProcessing/link.
+    # A directory is accepted too; robocam_client.py is looked for inside it.
+    client_path: ~/robocam_client.py
+
+    # mecanumbot_camera_stream already owns the camera device, so frames come
+    # from its topic. They are forwarded to the server as the JPEG they already
+    # are -- no decode/re-encode on the robot.
+    camera_topic: camera/image_raw/compressed
+
+    cloud_topic: deep3r/points
+    pose_topic: deep3r/pose
+    publish_pose: true
+
+    # CUT3R's own world frame, anchored on the first frame of each map_id, and
+    # NOT yet connected to the robot's TF tree -- nothing publishes a transform
+    # for it. See the README: publishing in the camera frame instead is the
+    # change that makes this usable by Nav2.
+    frame_id: deep3r_world
+
+    # Advertised metadata only; the server reports what it actually decoded
+    # rather than what the client claimed, so these need not be exact.
+    advertised_width: 1280
+    advertised_height: 720
+    advertised_fps: 15.0
+
+    # Frames in flight. The reconstruction runs at ~6 Hz at best, so a deep
+    # window only buys latency: a stale frame is worse than no frame.
+    max_inflight: 2
+    queue_depth: 2
+
+    # Log one line every N published clouds; 0 disables.
+    log_every: 30
