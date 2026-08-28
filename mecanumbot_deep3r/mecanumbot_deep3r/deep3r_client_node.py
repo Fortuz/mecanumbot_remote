@@ -139,7 +139,7 @@ class Deep3RClientNode(Node):
                 # cannot route to it. mecanumbot-deep3r-tunnel.service forwards
                 # the port here. See RoboCamStreamProcessing/link/README.md.
                 ("server", "tcp://127.0.0.1:5555"),
-                ("client_path", "~/robocam_client.py"),
+                ("client_path", "~/server/RoboCamStreamProcessing/link/robocam_client.py"),
                 ("camera_topic", "camera/image_raw/compressed"),
                 ("cloud_topic", "deep3r/points"),
                 ("pose_topic", "deep3r/pose"),
