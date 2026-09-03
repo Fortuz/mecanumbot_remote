@@ -1,0 +1,144 @@
+# Fear HRI V1: the robot carries bricks from a start area to a goal area, and the
+# person is standing in between.
+#
+# Grown from the draft in `fear_mecanumbot/sim_draft/` (Fahrad Namazov) into the
+# full V1 scene, so the fear pipeline can be exercised without hardware.
+#
+#   west  (-1.35, -0.20)  start area, 0.60 x 1.10 m, with the four bricks on it
+#   east  ( 1.35, -0.20)  goal area, 0.70 m square, where the bricks are meant to go
+#   centre ( 0.00, -0.20) the person's mat, 1.10 x 0.61 m, laid across the corridor
+#
+# The three sit on one line, y = -0.20, and that line is clear of both arena
+# obstacles: `box_obstacle_a` is north of it and `box_obstacle_b` is south, so the
+# only thing between the bricks and the goal is the person. That is the whole point
+# of the layout. Nothing here makes the robot go around them - the scene poses the
+# problem, the behaviour has to solve it.
+#
+# The mat is laid across the corridor rather than along it, so every workout spot
+# on it is on or beside the carry line: the person is dead on the line at the mat's
+# centre and 0.35 m off it at either end, which is still not enough for the robot to
+# pass - 0.16 m of person plus 0.17 m of robot half-width leaves about 20 mm. Then
+# one leg of the patrol takes them out to the north-east and holds them there, which
+# is the only part of the loop where the corridor is actually open.
+#
+# That approach -> linger -> retreat is the profile the fear dynamics are built
+# around: risk rises as they close, spikes if they get inside the hit distance, and
+# then has to decay slowly once they have stepped away. A proximity-only slowdown
+# would recover the instant they leave; a residual fear level does not.
+#
+# Measured over the 75.6 s patrol loop: the person spends 67% of it on the mat
+# blocking the corridor and 33% away from it, stands 0.00 m from the start -> goal
+# line at the mat's centre and 1.25 m from it at the far end of the detour, and keeps
+# 0.22 m of clearance from `box_obstacle_a` and 0.42 m from `box_obstacle_b`, so they
+# never walk through the arena furniture. The line itself clears the furniture by
+# 0.42 m and 0.35 m, which is why the person is the only thing on it. Standing on the
+# line puts them inside `HIT_DISTANCE_M` (0.25) of a robot that does not deviate, so
+# whether a near-collision spike fires is decided by the behaviour rather than by
+# the script - the interesting case rather than a scripted one.
+#
+# The three mats are floor markings: thin, non-colliding, and below the lidar plane.
+# The bricks are physical, and at 0.07 m they are sized for the grabbers - see
+# `mecanumbot_sim/README.md` on gripping. They also sit under the 0.13 m lidar
+# plane, exactly as real bricks would on the hardware, so they are ground truth on
+# `/sim/props` and invisible in `scan`.
+scenario:
+  name: fear_hri_brick_carry
+  actors:
+    - id: 1
+      name: exercising_person
+      kind: human
+      body_name: sim_human_0
+      is_subject: true
+      visible_to_lidar: true
+      pose:
+        x: 0.0
+        y: -0.20
+        z: 0.0
+        yaw: 1.5707963267948966
+      motion:
+        mode: patrol
+        speed: 0.30
+        loop: true
+        start_delay: 2.0
+        waypoints:
+          # Work out in the middle of the corridor, then at either end of the mat.
+          # All three spots block the straight line from the bricks to the goal.
+          - {x: 0.0, y: -0.20, z: 0.0, pause: 18.0}
+          - {x: 0.0, y: 0.15, z: 0.0, pause: 10.0}
+          - {x: 0.0, y: -0.55, z: 0.0, pause: 10.0}
+          - {x: 0.0, y: -0.20, z: 0.0, pause: 6.0}
+          # Out to the north-east, around the north side of box_obstacle_a...
+          - {x: 0.20, y: 0.85, z: 0.0}
+          # ...and hold there: the one stretch of the loop with the corridor open,
+          # so fear has to decay on its own rather than being reset by a collision
+          # that never comes.
+          - {x: 1.05, y: 1.05, z: 0.0, pause: 14.0}
+          # Back the same way.
+          - {x: 0.20, y: 0.85, z: 0.0}
+      gait:
+        mode: routine
+        period: 1.3
+        routine: [jacks, march, side_bend]
+        routine_reps: 6
+        leg_spread_deg: 28
+        leg_swing_deg: 32
+        arm_raise_deg: 95
+        arm_swing_deg: 55
+        torso_bend_deg: 18
+
+  props:
+    - id: 1
+      name: exercise_mat
+      kind: mat
+      body_name: sim_mat_0
+      # Across the corridor, so the person is on the carry line wherever they are
+      # standing on it.
+      pose: {x: 0.0, y: -0.20, z: 0.0, yaw: 1.5707963267948966}
+      size: [1.10, 0.61]
+
+    - id: 2
+      name: start_area
+      kind: mat
+      body_name: sim_mat_2
+      pose: {x: -1.35, y: -0.20, z: 0.0, yaw: 0.0}
+      size: [0.60, 1.10]
+
+    - id: 3
+      name: goal_area
+      kind: mat
+      body_name: sim_mat_1
+      pose: {x: 1.35, y: -0.20, z: 0.0, yaw: 0.0}
+      size: 0.70
+
+    # The four bricks, in a row down the middle of the start area.
+    - id: 4
+      name: brick_a
+      kind: cube
+      body_name: sim_cube_0
+      pose: {x: -1.35, y: 0.10, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    - id: 5
+      name: brick_b
+      kind: cube
+      body_name: sim_cube_1
+      pose: {x: -1.35, y: -0.10, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    - id: 6
+      name: brick_c
+      kind: cube
+      body_name: sim_cube_2
+      pose: {x: -1.35, y: -0.30, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    - id: 7
+      name: brick_d
+      kind: cube
+      body_name: sim_cube_3
+      pose: {x: -1.35, y: -0.50, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
