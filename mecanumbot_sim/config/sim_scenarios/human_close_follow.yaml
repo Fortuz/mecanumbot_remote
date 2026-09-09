@@ -1,0 +1,48 @@
+# The close-range case the leading experiment runs into: the human walks up to
+# the robot and stays there. Inside about a metre the camera has nothing to
+# work with -- a head-mounted camera at 0.22 m with a ~36 deg vertical field of
+# view sees calves and floor -- so `people_fusion` is carried by the LiDAR
+# alone, on the blind-zone exemption in mecanumbot_sensorprocess_smart. The
+# person then stops moving, which is the other half: DR-SPAAM only publishes a
+# track that has been seen moving, and close in it drops and re-seeds tracks as
+# two legs resolve as one blob and then two.
+#
+# What to watch: `people_fusion` must not empty out while the subject stands at
+# 0.45 m, and the wall panel must never appear in it. Both at once is the point
+# -- keeping a stationary person is only a repair if the stationary furniture
+# is still rejected.
+scenario:
+  name: human_close_follow
+  actors:
+    - id: 1
+      name: subject_human
+      kind: human
+      body_name: sim_human_0
+      is_subject: true
+      visible_to_lidar: true
+      pose:
+        x: 1.90
+        y: 0.0
+        z: 0.0
+        yaw: 3.141592653589793
+      motion:
+        mode: patrol
+        speed: 0.45
+        loop: false
+        start_delay: 1.0
+        waypoints:
+          # Walk in from where the camera can still see a whole body ...
+          - {x: 1.90, y: 0.0, z: 0.0}
+          # ... to arm's length, and stand there for the rest of the run.
+          - {x: 0.45, y: 0.0, z: 0.0, pause: 120.0}
+    - id: 2
+      name: side_wall_panel
+      kind: wall
+      body_name: sim_wall_panel_0
+      is_subject: false
+      visible_to_lidar: true
+      pose:
+        x: 0.90
+        y: -0.85
+        z: 0.0
+        yaw: 1.5707963267948926

@@ -169,9 +169,10 @@ and the same mirrored left-joint axis as the MJCF.
 
 A scenario is a YAML file listing **actors** (people and wall panels the detector
 is meant to reason about) and **props** (scenery: mats and pushable cubes).
-`config/sim_scenarios/` ships eleven of them, covering wall/human discrimination,
-a stopping subject, a crossing wrong human, patrol motion, and the two
-exercise/brick scenes described below.
+`config/sim_scenarios/` ships twelve of them, covering wall/human discrimination,
+a stopping subject, a crossing wrong human, patrol motion, a subject who walks
+into the camera's blind zone and stands there (`human_close_follow`), and the
+two exercise/brick scenes described below.
 
 ```yaml
 scenario:
@@ -499,7 +500,7 @@ fastest feedback loop here.
 | `mecanumbot_sim/detector_debug_node.py` | Detection-to-truth association markers. |
 | `mecanumbot_sim/nav_shim_node.py` | Nav2 stand-in. |
 | `launch/gz_backend.launch.py` | Gazebo server, model spawning and bridge. Included by the bringup launch, not run directly. |
-| `config/sim_scenarios/*.yaml` | The eleven shipped scenarios. |
+| `config/sim_scenarios/*.yaml` | The twelve shipped scenarios. |
 | `mujoco/mecanumbot.xml` | MJCF model and arena. |
 | `worlds/mecanumbot_arena.sdf` | Gazebo arena, geometrically identical to the MJCF one. |
 | `models/mecanumbot/` | Gazebo robot model. |
