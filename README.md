@@ -23,11 +23,11 @@ the other packages a developer runs on their own machine.
 | Executable | Package | ROS node name | Interfaces |
 | --- | --- | --- | --- |
 | `mecanumbot_keyboard` | `mecanumbot_teleop` | `mecanumbot_keyboard` | Publishes `/cmd_vel`, `/cmd_accessory_pos`. |
-| `mecanumbot_ledgui` | `mecanumbot_ledgui` | `mecanumbot_ledgui_client` | Service client for `set_led_status`, `get_led_status`. |
+| `mecanumbot_ledgui` | `mecanumbot_ledgui` | `mecanumbot_ledgui_client` | Service client for `set_led_status`, `get_led_status` (relative names; the robot serves them under `/mecanumbot/`, see the package README). |
 | `mecanumbot_sim_mujoco_io_node` | `mecanumbot_sim` | `mecanumbot_sim_io_node` | MuJoCo backend. Publishes `opencr_state`, `scan`; subscribes `cmd_vel`, `cmd_accessory_pos`. |
 | `mecanumbot_sim_gz_io_node` | `mecanumbot_sim` | `mecanumbot_sim_io_node` | Gazebo Sim backend, same interface. Only one backend runs at a time. |
 | `mecanumbot_sim_oracle_subject_node` | `mecanumbot_sim` | same | Ground-truth `subject_pose`, standing in for the detector. |
-| `mecanumbot_sim_nav_shim_node` | `mecanumbot_sim` | same | Serves `navigate_to_pose` / `navigate_through_poses` so trees run without Nav2. |
+| `mecanumbot_sim_nav_shim_node` | `mecanumbot_sim` | same | Serves `navigate_to_pose` / `navigate_through_poses` so trees run without Nav2; forwards `/goal_pose`, publishes `/amcl_pose`, and serves a dummy `/set_led_status`. |
 | `mecanumbot_sim_visualization_node` | `mecanumbot_sim` | same | RViz markers for actors, props, detections, verdicts. |
 | `mecanumbot_sim_detector_debug_node` | `mecanumbot_sim` | same | Detection-to-truth association markers. |
 | `mecanumbot_sim_behavior_evaluator_node` | `mecanumbot_sim` | same | Publishes `/sim/behavior_evaluation`. |
@@ -36,18 +36,24 @@ the other packages a developer runs on their own machine.
 No nodes are implemented at the repository root — it only groups the three
 packages.
 
-## The simulation entry point is in another repository
+## The simulation entry point
 
-`mecanumbot_sim` holds every node, model, world, scenario and evaluator, but the
-launch file that starts them, `sim.launch.py`, stays in `mecanumbot_bringup` with
-all the other launch orchestration. So a simulated run needs both repositories
-checked out:
+`mecanumbot_sim` holds every node, model, world, scenario and evaluator, and the
+launch file that starts them, `sim.launch.py`. It used to sit in
+`mecanumbot_bringup`; it moved here so the simulator starts without the robot's
+launch package and everything that drags in (joystick, web GUI, camera, audio).
+
+The `mecanumbot` repository still has to be checked out, for two packages: the
+simulator runs the real `mecanumbot_core` sensor processing on top of its
+backend, and reads the URDF, SLAM parameters and RViz config from
+`mecanumbot_description`. `mode:=perception` and `mode:=behaviour` additionally
+start the real detector and the real trees, from their own repositories.
 
 ```bash
-ros2 launch mecanumbot_bringup sim.launch.py                      # MuJoCo, drivers only
-ros2 launch mecanumbot_bringup sim.launch.py mode:=perception scenario:=human_near_wall
-ros2 launch mecanumbot_bringup sim.launch.py mode:=behaviour condition:=Doglike
-ros2 launch mecanumbot_bringup sim.launch.py backend:=gazebo      # Gazebo instead of MuJoCo
+ros2 launch mecanumbot_sim sim.launch.py                      # MuJoCo, drivers only
+ros2 launch mecanumbot_sim sim.launch.py mode:=perception scenario:=human_near_wall
+ros2 launch mecanumbot_sim sim.launch.py mode:=behaviour condition:=Doglike
+ros2 launch mecanumbot_sim sim.launch.py backend:=gazebo      # Gazebo instead of MuJoCo
 ```
 
 `mecanumbot_sim/launch/gz_backend.launch.py` is a fragment that `sim.launch.py`
@@ -56,7 +62,7 @@ includes, not something to launch directly.
 ## Off-board compute is no longer here
 
 `mecanumbot_deep3r` — the robot's client for the CUT3R reconstruction server —
-moved out to [`mecanumbot_server`](https://github.com/Fortuz/mecanumbot_server).
+moved out to [`mecanumbot_server`](https://github.com/hubaycsenge/mecanumbot_server).
 It ran *on* the robot, which made it the one package here that contradicted the
 rule this repository now keeps. Anything else that offloads work to the cluster
 belongs in `mecanumbot_server` too.
@@ -67,10 +73,12 @@ All three packages depend on `rclpy`. `mecanumbot_teleop` and `mecanumbot_ledgui
 also need `mecanumbot_msgs`; `mecanumbot_teleop` uses `geometry_msgs`, and
 `mecanumbot_ledgui` needs a working Tkinter install (`python3-tk`) and a display.
 
-`mecanumbot_sim` needs the `mujoco` pip package for the MuJoCo backend and
-`ros-humble-ros-gz` for the Gazebo one, neither declared in its `package.xml`
-(the same under-declaration the rest of the workspace has — see the root
-`CLAUDE.md`). Install what the backend you actually use needs:
+`mecanumbot_sim` needs the `mujoco` pip package for the MuJoCo backend, which is
+not declared in its `package.xml` (the same under-declaration the rest of the
+workspace has — see the root `CLAUDE.md`), and `ros-humble-ros-gz` for the Gazebo
+one. The Gazebo side *is* declared (`ros_gz_sim`, `ros_gz_bridge`), unconditionally,
+so `rosdep` pulls it in even for a MuJoCo-only setup. Install what the backend you
+actually use needs:
 
 ```bash
 pip3 install mujoco                     # MuJoCo backend
@@ -95,7 +103,7 @@ ros2 run mecanumbot_teleop mecanumbot_keyboard
 ros2 launch mecanumbot_ledgui mecanumbot_ledgui.launch.py
 
 # simulation (see above for the full argument matrix)
-ros2 launch mecanumbot_bringup sim.launch.py
+ros2 launch mecanumbot_sim sim.launch.py
 ```
 
 The LED GUI needs `mecanumbot_led`'s service node running on the robot, otherwise
@@ -108,16 +116,19 @@ editable from the robot's web GUI at `http://<robot>:8080/joystick`.
 ## Tests
 
 `mecanumbot_sim` carries the largest block of real unit tests in the workspace —
-four files over the scenarios, the gait figure and both evaluators, all pure
-Python and runnable without a ROS graph, which makes them the fastest feedback
-loop available:
+four files and 48 tests over the scenarios, the gait figure and both evaluators,
+all runnable without a ROS graph, which makes them the fastest feedback loop
+available. The two evaluator files import `rclpy` and `mecanumbot_msgs`, so run
+the whole set with the system `/usr/bin/python3` in a sourced workspace:
 
 ```bash
-python3 -m pytest mecanumbot_sim/test/test_sim_scenarios.py -v
+python3 -m pytest mecanumbot_sim/test/test_sim_scenarios.py -v -p no:launch_testing -p no:launch_testing_ros
+/usr/bin/python3 -m pytest mecanumbot_sim/test/test_sim_*.py -q -p no:launch_testing -p no:launch_testing_ros
 ```
 
 See the root `CLAUDE.md` for why `colcon test` and `test_flake8` are red on this
-machine regardless of the code.
+machine regardless of the code, and why pytest needs the `-p no:launch_testing`
+flags.
 
 ## Repository structure
 

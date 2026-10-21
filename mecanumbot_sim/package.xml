@@ -23,6 +23,23 @@
   <exec_depend>visualization_msgs</exec_depend>
   <exec_depend>xacro</exec_depend>
 
+  <!-- Started by launch/sim.launch.py. mecanumbot_core is the real sensor
+       processing (and the scan grid slam_toolbox reads), so it is needed in
+       every mode; the rest only in the mode named. mecanumbot_bringup is
+       deliberately absent: the simulator has to start without the robot's
+       launch package. -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>mecanumbot_core</exec_depend>
+  <!-- use_rviz -->
+  <exec_depend>rviz2</exec_depend>
+  <!-- mode:=mapping -->
+  <exec_depend>slam_toolbox</exec_depend>
+  <!-- mode:=perception -->
+  <exec_depend>mecanumbot_sensorprocess_smart</exec_depend>
+  <!-- mode:=behaviour -->
+  <exec_depend>mecanumbot_leading_behaviour</exec_depend>
+
   <!-- Gazebo Sim backend only. Not needed for the MuJoCo backend, which depends
        on the `mujoco` pip package and nothing from ROS.
        sudo apt install ros-humble-ros-gz ros-humble-ros-gz-sim ros-humble-ros-gz-bridge -->

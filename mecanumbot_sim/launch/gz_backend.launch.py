@@ -1,8 +1,8 @@
 """
 Gazebo Sim backend: simulator, model spawning and the ROS<->gz bridge.
 
-Not meant to be launched directly during normal use - `mecanumbot_bringup`'s
-`sim.launch.py` includes this with `backend:=gazebo`. It is a backend fragment,
+Not meant to be launched directly during normal use - `sim.launch.py`, next to
+this file, includes it with `backend:=gazebo`. It is a backend fragment,
 the MuJoCo equivalent of which is a single Node action and so needs no file.
 
 Actor and prop models are spawned from the scenario YAML, which is parsed here

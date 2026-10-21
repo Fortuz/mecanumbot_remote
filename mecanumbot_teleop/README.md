@@ -2,11 +2,12 @@
 
 ROS 2 teleoperation package for controlling the mecanumbot base and accessory actuators.
 
-This package provides two executable nodes:
+This package provides one executable node:
 
 - `mecanumbot_keyboard`
 
-Both publish the same pair of topics, so only one should be run at a time.
+It publishes the same pair of topics as `mecanumbot_joy` on the robot, so only one
+of them should be driving at a time.
 
 ## Node: `mecanumbot_keyboard`
 
@@ -24,8 +25,8 @@ Both publish the same pair of topics, so only one should be run at a time.
 | `w` / `x`  | Increase / decrease linear x velocity (forward / back). |
 | `a` / `d`  | Increase / decrease linear y velocity (left / right).   |
 | `q` / `e`  | Increase / decrease angular z velocity (rotate).        |
-| `i` / `k`  | Camera (neck) up / down.                                |
-| `j` / `l`  | Open / close gripper.                                   |
+| `i` / `k`  | Camera (neck) up to 8.6 / down to the mid position 5.3. |
+| `j` / `l`  | Open / close gripper (fixed preset positions).          |
 | space, `s` | Force stop — zeroes both target and control velocities. |
 | `Ctrl-C`   | Quit; a zero `Twist` is published on the way out.       |
 
@@ -35,7 +36,10 @@ Both publish the same pair of topics, so only one should be run at a time.
   target velocity rather than setting it absolutely.
 - Applies velocity ramp profiling (`make_simple_profile`, half a step per iteration) and
   clamps to the limits below.
-- Publishes only on a handled keypress, then sleeps 10 ms.
+- Publishes only on a handled keypress — the `Twist` and the current accessory
+  command together, whichever key it was — then sleeps 10 ms.
+- The accessory keys jump to preset positions rather than stepping; the command
+  starts at camera 8.6 and both grippers at 5.12.
 
 ### Limits and positions
 
@@ -45,7 +49,7 @@ Both publish the same pair of topics, so only one should be run at a time.
 | Max angular velocity   | 1.82                               |
 | Linear step size       | 0.01                               |
 | Angular step size      | 0.05                               |
-| Camera position range  | 2.0 to 8.6                         |
+| Camera position range  | 2.0 to 8.6 (keys reach 8.6 and 5.3) |
 | Gripper position range | 1.6 to 8.54 (front / neutral 5.12) |
 
 ## Joystick teleoperation has moved

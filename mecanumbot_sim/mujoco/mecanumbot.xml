@@ -239,12 +239,12 @@
         <geom name="grabber_left_geom" type="capsule" fromto="0 0 0 0.10 0 0" size="0.012" material="green" class="grabber"/>
       </body>
 
-      <body name="head" pos="0.1063 0 0.1679" quat="0.707 0.707 0 0">
+      <body name="head" pos="0.1063 0 0.170" quat="0.707 0.707 0 0">
         <inertial pos="0 0 0" mass="0.08" diaginertia="0.0002 0.0002 0.0002"/>
         <joint name="head_joint" range="-1.57 1.57" limited="true" damping="0.2"/>
         <geom type="box" size="0.02 0.03 0.02" material="orange" class="visual"/>
 
-        <body name="camera" pos="0.022 0.038 0">
+        <body name="camera" pos="0.022 0.0545 0">
           <geom type="box" size="0.0075 0.015 0.0135" material="red" class="visual"/>
         </body>
       </body>

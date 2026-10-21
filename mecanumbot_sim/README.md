@@ -4,9 +4,11 @@ Simulation package for the mecanumbot. It provides two interchangeable simulator
 backends, the scenario-driven actors they populate the world with, and the
 evaluation nodes that score a run.
 
-Everything simulation-related lives here. `mecanumbot_bringup` keeps exactly one
-launch file, `sim.launch.py`, which is the entry point for every simulated run;
-this package holds the nodes, models, worlds and scenarios it starts.
+Everything simulation-related lives here, including `launch/sim.launch.py`, the
+entry point for every simulated run. That file was in `mecanumbot_bringup` until
+2026-10-09; it reads nothing from that package now, so the simulator starts
+without the robot's launch orchestration installed. It still runs the real
+`mecanumbot_core` sensor processing and reads `mecanumbot_description`.
 
 ## The two backends
 
@@ -19,7 +21,7 @@ in simulation and on the robot, and identical between the two simulators.
 | Backend | Executable | Needs | Status |
 | --- | --- | --- | --- |
 | MuJoCo | `mecanumbot_sim_mujoco_io_node` | `mujoco` pip package | Works; the long-standing backend. |
-| Gazebo Sim | `mecanumbot_sim_gz_io_node` | `ros-humble-ros-gz` | **Never executed.** Written against Gazebo Fortress but not run — see [Gazebo status](#gazebo-status). |
+| Gazebo Sim | `mecanumbot_sim_gz_io_node` | `ros-humble-ros-gz` | **Unverified.** Written against Gazebo Fortress; no run is recorded — see [Gazebo status](#gazebo-status). |
 
 Shared unit conversions live in `kinematics.py`: mecanum inverse kinematics,
 the OpenCR velocity-tick scaling and the neck/grabber servo scaling. Both
@@ -31,7 +33,7 @@ of a constant that drifted in one copy.
 | Node | Executable | Role |
 | --- | --- | --- |
 | `mecanumbot_sim_io_node` | `mecanumbot_sim_mujoco_io_node` / `mecanumbot_sim_gz_io_node` | The simulated robot. Both register the same ROS node name, so only one runs at a time. |
-| `mecanumbot_sim_oracle_subject_node` | `mecanumbot_sim_oracle_subject_node` | Republishes ground-truth subject pose as `subject_pose`, standing in for the detector. |
+| `mecanumbot_sim_oracle_subject_node` | `mecanumbot_sim_oracle_subject_node` | Republishes ground-truth subject pose as `subject_pose` and, as a one-person `PoseArray`, on `people_fusion`, standing in for the detector and the fusion. The leading trees read the person off `people_fusion` only. Parameters `source_topic` (`/sim/subject_pose_ground_truth`), `target_topic` (`subject_pose`) and `people_topic` (`people_fusion`; empty disables it). |
 | `mecanumbot_sim_detection_evaluator_node` | same | Scores perception against ground truth. |
 | `mecanumbot_sim_behavior_evaluator_node` | same | Scores robot motion against ground truth. |
 | `mecanumbot_sim_visualization_node` | same | RViz markers for actors, props, detections and evaluator verdicts. |
@@ -96,17 +98,18 @@ of a constant that drifted in one copy.
 
 ## Gazebo status
 
-**The Gazebo backend has never been run.** Gazebo is not installed on the
-development machine this was written on (`gz`, `ign`, `gazebo`, `ros_gz` and
-`gazebo_ros_pkgs` are all absent), so the models, world, bridge and node are
-written but unverified. The MuJoCo backend is unaffected and remains the one that
-is known to work.
+**The Gazebo backend has no recorded run.** Gazebo was not installed on the
+development machine this was written on, so the models, world, bridge and node
+were written but not executed. `ros-humble-ros-gz` (Gazebo Fortress,
+`ign gazebo` 6.18) has since been installed on that machine, but nothing here
+records a run against it, so treat the backend as unverified until one is. The
+MuJoCo backend is unaffected and remains the one that is known to work.
 
 To try it:
 
 ```bash
 sudo apt install ros-humble-ros-gz
-ros2 launch mecanumbot_bringup sim.launch.py backend:=
+ros2 launch mecanumbot_sim sim.launch.py backend:=gazebo
 ```
 
 Three things to check on that first run:
@@ -345,7 +348,7 @@ either end, which still leaves only about 20 mm for a 0.17 m half-width robot to
 squeeze past. Getting the bricks across therefore means going around a person, and
 nothing in the scenario makes that happen — the scene poses the problem, the
 behaviour has to solve it. The nav shim in particular does not: it drives straight
-at each goal (see *Backend fidelity*), so under `mode:=behaviour` the robot will
+at each goal (see [the nav shim](#node-mecanumbot_sim_nav_shim_node)), so under `mode:=behaviour` the robot will
 walk right through the person unless the tree stops it.
 
 `fear_hri_brick_carry` is tuned against the constants in
@@ -359,7 +362,7 @@ they never walk through the arena furniture.
 
 `mecanumbot_sim_visualization_node` draws the props on `/sim/prop_markers`.
 `/sim/props` carries poses but no extents, so the node reads the mat footprint and
-the cube edge from its own `scenario_path` parameter — the bringup launch hands it
+the cube edge from its own `scenario_path` parameter — `sim.launch.py` hands it
 the same file the backend loaded. Without one it falls back to a yoga mat and a
 0.07 m cube.
 
@@ -376,6 +379,7 @@ whether the wrong human was picked, nearest-actor identity and distance.
 | `wall_false_positive_radius` | `0.55` | Distance within which a detection counts as a wall false positive. |
 | `require_raw_detection` | `true` | Set `false` in truth-twin mode, where the oracle supplies the track and there are no raw detections to require. |
 | `evaluation_rate_hz` | `4.0` | Verdict rate. |
+| `actors_topic` / `subject_pose_topic` / `detections_topic` / `evaluation_topic` | `/sim/actors` / `subject_pose` / `dr_spaam/dets` / `/sim/detection_evaluation` | Inputs and output. |
 
 `mecanumbot_sim_behavior_evaluator_node` publishes
 `mecanumbot_msgs/msg/SimBehaviorEvaluation` on `/sim/behavior_evaluation`:
@@ -388,6 +392,8 @@ detections, commanded speed and the relevant distances.
 | `human_stop_distance` | `0.45` | Closer than this to a human counts as a proximity violation. |
 | `wall_stop_distance` | `0.35` | Same for walls. |
 | `follow_min_distance` / `follow_max_distance` | `0.55` / `2.00` | Band the robot should hold behind the subject. |
+| `evaluation_rate_hz` | `4.0` | Verdict rate. |
+| `actors_topic` / `detection_evaluation_topic` / `odom_topic` / `cmd_vel_topic` / `behavior_evaluation_topic` | `/sim/actors` / `/sim/detection_evaluation` / `odom` / `/cmd_vel` / `/sim/behavior_evaluation` | Inputs and output. |
 
 ## Node: mecanumbot_sim_nav_shim_node
 
@@ -416,7 +422,9 @@ separately, so there is one path through the node however a goal arrives.
 | `position_tolerance` / `yaw_tolerance` | `0.08` / `0.12` | Goal acceptance thresholds. |
 | `waypoint_tolerance` | `0.35` | How near counts as having passed a waypoint on the way through a route. |
 | `navigate_to_pose_action` / `navigate_through_poses_action` | `navigate_to_pose` / `navigate_through_poses` | Action names to serve. |
-| `enable_dummy_led_service` | `true` | Serve `set_led_status` so the LED tree does not block on a robot-only service. |
+| `control_rate_hz` | `20.0` | Control loop rate. |
+| `odom_topic` / `goal_topic` / `cmd_vel_topic` / `amcl_pose_topic` | `/mecanumbot/odom` / `/goal_pose` / `/cmd_vel` / `/amcl_pose` | Inputs and outputs. `/amcl_pose` is transient-local. |
+| `enable_dummy_led_service` | `true` | Serve a dummy `/set_led_status` so an LED service call does not block on a robot-only service. Note the name: the leading trees call `/mecanumbot/set_led_status` (the robot's namespaced one), which this does **not** answer. |
 
 The node holds `/cmd_vel` only while it is driving, and stops the robot once
 when a goal ends. Nav2 does not sit on the topic while it is idle and neither
@@ -428,35 +436,47 @@ avoid obstacles. It exists to test tree logic, not navigation.
 
 ## Running
 
-Everything goes through the one bringup launch file:
+Everything goes through one launch file, `launch/sim.launch.py`:
 
 ```bash
-# MuJoCo, drivers only
-ros2 launch mecanumbot_bringup sim.launch.py
+# MuJoCo, drivers only (scenario defaults to single_human_follow; scenario:='' is an empty arena)
+ros2 launch mecanumbot_sim sim.launch.py
+
+# build a map of the arena: the same two nodes as mecanumbot_bringup's
+# mapping.launch.py, started by sim.launch.py itself, i.e.
+# slam_toolbox plus mecanumbot_core's mecanumbot_scan_grid_node, which re-bins
+# /mecanumbot/scan onto the fixed grid slam_toolbox reads (/mecanumbot/scan_grid)
+ros2 launch mecanumbot_sim sim.launch.py mode:=mapping
 
 # full perception pipeline with the real DR-SPAAM detector and evaluators
-ros2 launch mecanumbot_bringup sim.launch.py mode:=perception
+ros2 launch mecanumbot_sim sim.launch.py mode:=perception
 
 # behaviour tree against oracle tracking, no detector error in the loop
-ros2 launch mecanumbot_bringup sim.launch.py mode:=behaviour condition:=Doglike
+ros2 launch mecanumbot_sim sim.launch.py mode:=behaviour condition:=Doglike
 
 # the exercise/brick scenes
-ros2 launch mecanumbot_bringup sim.launch.py mode:=perception scenario:=exercise_mat_stationary
-ros2 launch mecanumbot_bringup sim.launch.py mode:=truth_twin scenario:=fear_hri_brick_carry
+ros2 launch mecanumbot_sim sim.launch.py mode:=perception scenario:=exercise_mat_stationary
+ros2 launch mecanumbot_sim sim.launch.py mode:=truth_twin scenario:=fear_hri_brick_carry
 
 # watch the figure work out: the MuJoCo viewer is where the articulation shows
-ros2 launch mecanumbot_bringup sim.launch.py scenario:=exercise_mat_stationary
+ros2 launch mecanumbot_sim sim.launch.py scenario:=exercise_mat_stationary
 
 # Nav2 shim and evaluators but no tree, so something out-of-tree can drive
-ros2 launch mecanumbot_bringup sim.launch.py mode:=behaviour condition:=none \
+ros2 launch mecanumbot_sim sim.launch.py mode:=behaviour condition:=none \
     scenario:=fear_hri_brick_carry
 
 # pick a scenario by name from config/sim_scenarios (or give an absolute path)
-ros2 launch mecanumbot_bringup sim.launch.py mode:=perception scenario:=two_humans_wall_discrimination
+ros2 launch mecanumbot_sim sim.launch.py mode:=perception scenario:=two_humans_wall_discrimination
 
 # same thing on Gazebo
-ros2 launch mecanumbot_bringup sim.launch.py backend:=gazebo mode:=perception
+ros2 launch mecanumbot_sim sim.launch.py backend:=gazebo mode:=perception
 ```
+
+The other arguments, with their defaults: `namespace` (`mecanumbot`), `condition`
+(`Doglike`; `Doglike` | `Control` | `LED` | `none`), `use_rviz` (`true`, ignored in
+`mode:=base`), `show_viewer` (`true`; the MuJoCo viewer or the Gazebo GUI),
+`velocity_frame` (`body`, Gazebo only) and `behaviour_yaml`
+(`mecanumbot_leading_behaviour`'s `config/sim_behaviour_setting_constants.yaml`).
 
 Watching the verdicts:
 
@@ -477,12 +497,20 @@ colcon test --packages-select mecanumbot_sim
 colcon test-result --verbose
 ```
 
-`test/` holds the workspace's only real unit tests alongside the usual lint
-scaffolding: `test_sim_scenarios.py`, `test_sim_gait.py` (the articulation chain
-and every exercise move),
-`test_sim_behavior_evaluator.py` and `test_sim_detection_evaluator.py`. They are
-pure Python and need no ROS graph, so they run in well under a second and are the
-fastest feedback loop here.
+`colcon test` is currently broken on this machine (see the root `CLAUDE.md`), so
+run the tests directly, from this directory:
+
+```bash
+/usr/bin/python3 -m pytest test/test_sim_*.py -q -p no:launch_testing -p no:launch_testing_ros
+```
+
+`test/` holds real unit tests alongside the usual lint scaffolding:
+`test_sim_scenarios.py`, `test_sim_gait.py` (the articulation chain and every
+exercise move), `test_sim_behavior_evaluator.py` and
+`test_sim_detection_evaluator.py` — 48 tests. They need no ROS graph, so they run
+in well under a second and are the fastest feedback loop here; the two evaluator
+files do import `rclpy` and `mecanumbot_msgs`, hence the system python in a sourced
+workspace.
 
 ## File functions
 
@@ -491,7 +519,7 @@ fastest feedback loop here.
 | `mecanumbot_sim/kinematics.py` | Mecanum IK and OpenCR tick conversions shared by both backends. |
 | `mecanumbot_sim/mujoco_io_node.py` | MuJoCo backend. |
 | `mecanumbot_sim/gz_io_node.py` | Gazebo Sim backend and the ROS side of the bridge. |
-| `mecanumbot_sim/sim_scenarios.py` | Scenario YAML loader and the supported actor body list. |
+| `mecanumbot_sim/sim_scenarios.py` | Scenario YAML loader and the supported actor, prop and gait-mode lists. |
 | `mecanumbot_sim/sim_actor_runtime.py` | Waypoint-following actor motion (both backends) and the figure's quaternion forward kinematics and exercise moves (MuJoCo). |
 | `mecanumbot_sim/oracle_subject_node.py` | Ground truth republished as `subject_pose`. |
 | `mecanumbot_sim/detection_evaluator_node.py` | Perception verdicts. |
@@ -499,13 +527,15 @@ fastest feedback loop here.
 | `mecanumbot_sim/visualization_node.py` | RViz markers for actors, props, detections and verdicts. |
 | `mecanumbot_sim/detector_debug_node.py` | Detection-to-truth association markers. |
 | `mecanumbot_sim/nav_shim_node.py` | Nav2 stand-in. |
-| `launch/gz_backend.launch.py` | Gazebo server, model spawning and bridge. Included by the bringup launch, not run directly. |
+| `launch/sim.launch.py` | The entry point: `backend` × `mode`, see "Running". |
+| `launch/gz_backend.launch.py` | Gazebo server, model spawning and bridge. Included by `sim.launch.py`, not run directly. |
 | `config/sim_scenarios/*.yaml` | The twelve shipped scenarios. |
 | `mujoco/mecanumbot.xml` | MJCF model and arena. |
 | `worlds/mecanumbot_arena.sdf` | Gazebo arena, geometrically identical to the MJCF one. |
 | `models/mecanumbot/` | Gazebo robot model. |
 | `models/sim_human/`, `models/sim_wall_panel/` | Gazebo scenario actor models. |
 | `models/sim_mat/`, `models/sim_cube/` | Gazebo scenario prop models: the static floor mat and the pushable, grippable cube. |
+| `scripts/prepare_gazebo_meshes.py` | Stages decimated copies of `mecanumbot_description/meshes` into `models/mecanumbot/meshes/`. Currently unused: `models/mecanumbot/model.sdf` references no meshes, and the script still resolves `mecanumbot_description` next to this package, as it sat before the move out of the `mecanumbot` repository. |
 
 The two arenas are kept geometrically identical on purpose — same 10×10 m floor,
 same 4×4 m walled box, same two obstacles — so a scenario can be replayed on

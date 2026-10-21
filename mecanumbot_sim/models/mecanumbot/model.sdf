@@ -137,7 +137,7 @@
     <!-- Accessories: the neck tilt carries the camera and is the gesture channel
          for the Doglike condition, so it is actuated here and not just in RViz. -->
     <link name="head_link">
-      <pose relative_to="base_link">0.1063 0 0.1679 1.5707963 0 0</pose>
+      <pose relative_to="base_link">0.1063 0 0.170 1.5707963 0 0</pose>
       <inertial>
         <mass>0.08</mass>
         <inertia><ixx>0.0002</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.0002</iyy><iyz>0</iyz><izz>0.0002</izz></inertia>
@@ -153,7 +153,7 @@
     </joint>
 
     <link name="camera_link">
-      <pose relative_to="head_link">0.022 0.038 0 0 -1.5707963 0</pose>
+      <pose relative_to="head_link">0.022 0.0545 0 0 -1.5707963 0</pose>
       <inertial>
         <mass>0.01</mass>
         <inertia><ixx>1e-5</ixx><ixy>0</ixy><ixz>0</ixz><iyy>1e-5</iyy><iyz>0</iyz><izz>1e-5</izz></inertia>

@@ -279,6 +279,11 @@ def main():
                 pub_accessory.publish(accessory_motor_cmd)
                 key_handled = False
                 time.sleep(SLEEP_TIME)
+            elif control_linear_x_velocity or control_linear_y_velocity or control_angular_velocity:
+                # Repeat the command while moving: the robot's io node stops
+                # the wheels after dev_params.cmd_vel_timeout without one.
+                pub_vel.publish(create_twistcmd(
+                    control_linear_x_velocity, control_linear_y_velocity, control_angular_velocity))
     except Exception as e:
         print(e)
     finally:

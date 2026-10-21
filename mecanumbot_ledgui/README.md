@@ -20,6 +20,17 @@ Executable: `mecanumbot_ledgui` — ROS node name `mecanumbot_ledgui_client`.
 Both are called from worker threads via `call_async`, so the Tk event loop stays
 responsive. `Get from Robot` also runs once at startup to populate the table.
 
+Both names are **relative** and the node has no namespace, so it calls
+`/set_led_status` and `/get_led_status`. The robot's base launch starts
+`mecanumbot_led_service` in the `mecanumbot` namespace, where the services are
+`/mecanumbot/set_led_status` and `/mecanumbot/get_led_status` — so against the
+base launch the status bar reports them unavailable. The launch file takes no
+arguments; run the node in that namespace instead:
+
+```bash
+ros2 run mecanumbot_ledgui mecanumbot_ledgui --ros-args -r __ns:=/mecanumbot
+```
+
 ### GUI layout
 
 | Area                           | Function                                                                  |
@@ -78,5 +89,8 @@ service directly.
 ```bash
 ros2 launch mecanumbot_ledgui mecanumbot_ledgui.launch.py
 ```
+
+That reaches un-namespaced services only; against the robot's base launch use the
+`ros2 run … --ros-args -r __ns:=/mecanumbot` form above.
 
 Requires Tkinter (`python3-tk`) and a display.
