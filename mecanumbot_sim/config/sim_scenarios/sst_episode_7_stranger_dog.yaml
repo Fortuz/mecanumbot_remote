@@ -1,0 +1,98 @@
+# Strange Situation Test - Episode 7 (Stranger and Dog).
+#
+# The robot is the dog. The owner is NOT present, so again there is no subject:
+# the only actor is the stranger (sim_human_1, is_subject: false) and
+# scenario.subject_actor is None -> `subject_missing`.
+#
+# The stranger enters, pauses next to the door without interacting (~5 s), greets
+# the dog briefly (~5 s), then sits on Chair 2 and does paperwork for ~3 min. At
+# the end they put the leash on the dog and leave the room together with the dog.
+#
+# Simplifications: the ~5 s door pause and greeting are short `pause` values; the
+# greeting and "putting the leash on" are the stranger stepping up close to the
+# robot. "Leaving together with the dog" is modelled as the stranger walking out
+# through the door - the robot (the dog) is driven by its own controller and is
+# not dragged by the scene, so it does not physically follow.
+#
+# What to watch: `subject_missing` throughout (no owner). The stranger approaches
+# the robot at the end (a non-subject human up close) before walking off the arena.
+#
+# Layout (mecanumbot_sst.xml): Chair 2 (1.1, 1.0), door (0.3, -1.9), robot/dog
+# near the origin, outside is y < -2.2.
+scenario:
+  name: sst_episode_7_stranger_dog
+  actors:
+    - id: 1
+      name: stranger
+      kind: human
+      body_name: sim_human_1
+      is_subject: false
+      visible_to_lidar: true
+      # Enters through the door, facing into the room.
+      pose:
+        x: 0.3
+        y: -1.8
+        z: 0.0
+        yaw: 1.5707963267948966
+      motion:
+        mode: patrol
+        speed: 0.35
+        loop: false
+        start_delay: 0.5
+        waypoints:
+          # Pause next to the door without interacting (~5 s).
+          - {x: 0.3, y: -1.5, z: 0.0, pause: 2.5}
+          # Greet the dog briefly: step up close to the robot (~5 s)...
+          - {x: 0.2, y: -0.35, z: 0.0, pause: 2.5}
+          # ... then sit on Chair 2 and do paperwork (~3 min). Go up the west
+          # side of box_obstacle_a (centre 0.9, 0.4) rather than over it.
+          - {x: 0.3, y: 0.7, z: 0.0}
+          - {x: 1.05, y: 1.05, z: 0.0, pause: 22.5}
+          # Put the leash on the dog: come back down the west side, then up to
+          # the robot again.
+          - {x: 0.3, y: 0.7, z: 0.0}
+          - {x: 0.2, y: -0.3, z: 0.0, pause: 3.0}
+          # ... and leave the room with the dog, out through the door.
+          - {x: 0.3, y: -1.75, z: 0.0}
+          - {x: 0.3, y: -2.6, z: 0.0, pause: 15.0}
+
+  props:
+    # The blocks, left on Location 1 (1.5, -0.2).
+    - id: 1
+      name: block_a
+      kind: cube
+      body_name: sim_cube_0
+      pose: {x: 1.45, y: -0.08, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 2
+      name: block_b
+      kind: cube
+      body_name: sim_cube_1
+      pose: {x: 1.55, y: -0.08, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 3
+      name: block_c
+      kind: cube
+      body_name: sim_cube_2
+      pose: {x: 1.45, y: -0.30, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 4
+      name: block_d
+      kind: cube
+      body_name: sim_cube_3
+      pose: {x: 1.55, y: -0.30, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    # A toy ball in the Toys area (top-centre of Fig. 1), between the two chairs.
+    # A free body the dog (robot) can roll; size is the diameter.
+    - id: 5
+      name: toy_ball
+      kind: ball
+      body_name: sim_ball_0
+      pose: {x: 0.1, y: 1.5, z: 0.0, yaw: 0.0}
+      size: 0.18
+      mass: 0.08

@@ -1,0 +1,119 @@
+# Strange Situation Test - Episode 2 (Owner, Stranger, and Dog + Owner Leaving).
+#
+# The robot is the dog. sim_human_0 is the owner (the tracked subject) and starts
+# seated on Chair 1. sim_human_1 is the stranger: they enter quietly, sit on
+# Chair 2 opposite the owner for about a minute, then get up and initiate play
+# with the dog (walk up close to the robot). After the first minute of play the
+# owner leaves the room quietly, and the stranger stays and keeps playing.
+#
+# Simplifications: minutes shortened to seconds of `pause`; "play with the dog" is
+# the stranger walking up near the robot at the origin and lingering there.
+#
+# What to watch: the owner is the subject, so this is where the subject first
+# leaves the arena - the owner's final waypoint is south of the door (y < -2.2),
+# so /sim/subject_pose_ground_truth walks off the floor and the detection
+# evaluator should go from `tracking_subject` to `subject_error_high`. The
+# stranger is a non-subject human near the robot, a `wrong_human_lock` candidate.
+#
+# Layout (mecanumbot_sst.xml): Chair 1 (-0.9, 0.7), Chair 2 (1.1, 1.0), door
+# (0.3, -1.9), outside the room is y < -2.2.
+scenario:
+  name: sst_episode_2_owner_stranger_dog
+  actors:
+    - id: 1
+      name: owner
+      kind: human
+      body_name: sim_human_0
+      is_subject: true
+      visible_to_lidar: true
+      # Already seated on Chair 1, facing Chair 2.
+      pose:
+        x: -0.75
+        y: 0.55
+        z: 0.0
+        yaw: -0.5
+      motion:
+        mode: patrol
+        speed: 0.4
+        loop: false
+        # Sit through the stranger's entry and the first minute of play, then go.
+        start_delay: 20.0
+        waypoints:
+          # Get up from Chair 1 and leave quietly through the door...
+          - {x: 0.3, y: -1.75, z: 0.0}
+          # ... and out of the room. South of the south wall: subject is gone.
+          - {x: 0.3, y: -2.6, z: 0.0, pause: 30.0}
+    - id: 2
+      name: stranger
+      kind: human
+      body_name: sim_human_1
+      is_subject: false
+      visible_to_lidar: true
+      # Enters by the door, facing into the room.
+      pose:
+        x: 0.3
+        y: -1.75
+        z: 0.0
+        yaw: 1.5707963267948966
+      motion:
+        mode: patrol
+        speed: 0.35
+        loop: false
+        start_delay: 1.0
+        waypoints:
+          # Enter quietly and sit on Chair 2 opposite the owner (~1 min). The
+          # straight line from the door to Chair 2 clips box_obstacle_a
+          # (centre 0.9, 0.4; x 0.72..1.08, y 0.22..0.58), so go up its west
+          # side first, then across to the chair.
+          - {x: 0.3, y: 0.7, z: 0.0}
+          - {x: 1.05, y: 1.05, z: 0.0, pause: 9.0}
+          # Get up and initiate play: walk up close to the dog (the robot),
+          # again down the west side of box_obstacle_a rather than over it.
+          - {x: 0.3, y: 0.75, z: 0.0}
+          - {x: 0.3, y: 0.0, z: 0.0, pause: 7.5}
+          # Keep playing around the robot after the owner has gone. These stay
+          # clear of both obstacles (box_obstacle_b is at -0.7, -0.8).
+          - {x: -0.2, y: -0.3, z: 0.0, pause: 5.0}
+          - {x: 0.3, y: 0.2, z: 0.0, pause: 15.0}
+
+  props:
+    # The building blocks, on Location 2 (-1.5, -0.3): Ep1 carried them there, and
+    # Ep2 follows directly, so this is where they have ended up.
+    - id: 1
+      name: block_a
+      kind: cube
+      body_name: sim_cube_0
+      pose: {x: -1.55, y: -0.18, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 2
+      name: block_b
+      kind: cube
+      body_name: sim_cube_1
+      pose: {x: -1.45, y: -0.18, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 3
+      name: block_c
+      kind: cube
+      body_name: sim_cube_2
+      pose: {x: -1.55, y: -0.40, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 4
+      name: block_d
+      kind: cube
+      body_name: sim_cube_3
+      pose: {x: -1.45, y: -0.40, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    # A toy ball in the Toys area (top-centre of Fig. 1), between the two chairs.
+    # A free body the dog (robot) can roll; size is the diameter.
+    - id: 5
+      name: toy_ball
+      kind: ball
+      body_name: sim_ball_0
+      pose: {x: 0.1, y: 1.5, z: 0.0, yaw: 0.0}
+      size: 0.18
+      mass: 0.08

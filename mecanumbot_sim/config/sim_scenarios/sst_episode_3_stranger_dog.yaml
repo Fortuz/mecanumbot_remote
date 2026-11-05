@@ -1,0 +1,105 @@
+# Strange Situation Test - Episode 3 (Stranger and Dog + Stranger Leaving).
+#
+# The robot is the dog. The owner is NOT in the room in this episode, so there is
+# no subject: the only actor is the stranger (sim_human_1, is_subject: false).
+# This is deliberate - with the owner absent, scenario.subject_actor is None and
+# the detection evaluator reports `subject_missing`, which is exactly the state
+# the dog is in (its attachment figure is gone).
+#
+# The stranger returns to Chair 2 and does paperwork for ~2 min, then carries all
+# the building blocks from Location 2 back to Location 1 for ~1 min, and at the
+# end leaves the room quietly.
+#
+# Simplifications: minutes shortened to seconds of `pause`; the block return is
+# the stranger walking Location 2 -> Location 1, the cubes are not physically
+# moved. The cubes sit on Location 2 here (where Ep1 left them) as props.
+#
+# What to watch: `subject_missing` throughout (no owner). The stranger is a
+# non-subject human; nothing should ever be reported as the subject.
+#
+# Layout (mecanumbot_sst.xml): Chair 2 (1.1, 1.0), Location 1 (1.5, -0.2),
+# Location 2 (-1.5, -0.3), door (0.3, -1.9), outside is y < -2.2.
+scenario:
+  name: sst_episode_3_stranger_dog
+  actors:
+    - id: 1
+      name: stranger
+      kind: human
+      body_name: sim_human_1
+      is_subject: false
+      visible_to_lidar: true
+      # Continues from where Ep2 ended: the stranger was playing near the robot
+      # (0.3, 0.2) and never left, so Ep3 starts there rather than at the door.
+      pose:
+        x: 0.3
+        y: 0.2
+        z: 0.0
+        yaw: 1.5707963267948966
+      motion:
+        mode: patrol
+        speed: 0.35
+        loop: false
+        start_delay: 0.5
+        waypoints:
+          # Return to Chair 2 and do paperwork (~2 min). Go up the west side of
+          # box_obstacle_a (centre 0.9, 0.4) first, then across to the chair.
+          - {x: 0.3, y: 0.75, z: 0.0}
+          #- {x: 1.05, y: 1.05, z: 0.0, pause: 15.0}
+          - {x: 1.05, y: 1.05, z: 0.0, pause: 7.5}
+          # Come back down the west side before crossing the room to Location 2.
+          - {x: 0.3, y: 0.7, z: 0.0}
+          # Carry the blocks from Location 2 ...
+          #- {x: -1.25, y: -0.3, z: 0.0, pause: 4.0}
+          - {x: -1.25, y: -0.3, z: 0.0, pause: 2.0}
+          # ... back to Location 1 (~1 min of back-and-forth).
+          #- {x: 1.25, y: -0.2, z: 0.0, pause: 4.0}
+          - {x: 1.25, y: -0.2, z: 0.0, pause: 2.0}
+          #- {x: -1.25, y: -0.3, z: 0.0, pause: 4.0}
+          - {x: -1.25, y: -0.3, z: 0.0, pause: 2.0}
+          #- {x: 1.25, y: -0.2, z: 0.0, pause: 4.0}
+          - {x: 1.25, y: -0.2, z: 0.0, pause: 2.0}
+          # Leave the room quietly through the door.
+          - {x: 0.3, y: -1.75, z: 0.0}
+          #- {x: 0.3, y: -2.6, z: 0.0, pause: 15.0}
+          - {x: 0.3, y: -2.6, z: 0.0, pause: 7.5}
+
+  props:
+    # The blocks, now on Location 2 (-1.5, -0.3) where Ep1 carried them.
+    - id: 1
+      name: block_a
+      kind: cube
+      body_name: sim_cube_0
+      pose: {x: -1.55, y: -0.18, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 2
+      name: block_b
+      kind: cube
+      body_name: sim_cube_1
+      pose: {x: -1.45, y: -0.18, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 3
+      name: block_c
+      kind: cube
+      body_name: sim_cube_2
+      pose: {x: -1.55, y: -0.40, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 4
+      name: block_d
+      kind: cube
+      body_name: sim_cube_3
+      pose: {x: -1.45, y: -0.40, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    # A toy ball in the Toys area (top-centre of Fig. 1), between the two chairs.
+    # A free body the dog (robot) can roll; size is the diameter.
+    - id: 5
+      name: toy_ball
+      kind: ball
+      body_name: sim_ball_0
+      pose: {x: 0.1, y: 1.5, z: 0.0, yaw: 0.0}
+      size: 0.18
+      mass: 0.08

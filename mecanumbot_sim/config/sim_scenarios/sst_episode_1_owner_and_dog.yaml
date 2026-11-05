@@ -1,0 +1,93 @@
+# Strange Situation Test - Episode 1 (Owner and Dog).
+#
+# The robot is the dog; sim_human_0 is the owner and the tracked subject. There is
+# no stranger in this episode. The owner enters by the door, sits on Chair 1 and
+# fills in questionnaires, then carries building blocks from Location 1 to
+# Location 2, then returns to Chair 1.
+#
+# Simplifications (agreed): the real minutes are shortened to a handful of seconds
+# of `pause`, and the block-carrying is just the owner walking to Location 1,
+# standing there, then walking to Location 2 - the cubes are not physically moved.
+# The cubes are props on Location 1 so they are ground truth on /sim/props and sit
+# below the lidar plane, exactly as the bricks do in fear_hri_brick_carry.
+#
+# What to watch: the owner is the subject throughout, so /sim/subject_pose_ground_truth
+# tracks them the whole episode and the detection evaluator should report
+# `tracking_subject` while they are in the open. The owner never leaves, so the
+# subject never goes missing in Ep1 (that starts in Ep2).
+#
+# Layout (SST world, mecanumbot_sst.xml): Chair 1 (-0.9, 0.7), Location 1
+# (1.5, -0.2) with the cubes, Location 2 (-1.5, -0.3), door at (0.3, -1.9).
+scenario:
+  name: sst_episode_1_owner_and_dog
+  actors:
+    - id: 1
+      name: owner
+      kind: human
+      body_name: sim_human_0
+      is_subject: true
+      visible_to_lidar: true
+      # Starts just inside the door, facing into the room (+y).
+      pose:
+        x: 0.3
+        y: -1.75
+        z: 0.0
+        yaw: 1.5707963267948966
+      motion:
+        mode: patrol
+        speed: 0.35
+        loop: false
+        start_delay: 0.5
+        waypoints:
+          # Enter and sit on Chair 1: fill in questionnaires (phase 1, ~2 min).
+          - {x: -0.75, y: 0.55, z: 0.0, pause: 10.0}
+          # Carry blocks: go to Location 1 and pick up (~0.5 min there).
+          - {x: 1.25, y: -0.2, z: 0.0, pause: 4.0}
+          # ... over to Location 2 to build the tower (~0.5 min).
+          - {x: -1.25, y: -0.3, z: 0.0, pause: 4.0}
+          # Back for one more block run.
+          - {x: 1.25, y: -0.2, z: 0.0, pause: 4.0}
+          - {x: -1.25, y: -0.3, z: 0.0, pause: 4.0}
+          # Return to Chair 1 and continue the questionnaires.
+          - {x: -0.75, y: 0.55, z: 0.0, pause: 15.0}
+
+  props:
+    # The building blocks, waiting on Location 1 (1.5, -0.2).
+    - id: 1
+      name: block_a
+      kind: cube
+      body_name: sim_cube_0
+      pose: {x: 1.45, y: -0.08, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 2
+      name: block_b
+      kind: cube
+      body_name: sim_cube_1
+      pose: {x: 1.55, y: -0.08, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 3
+      name: block_c
+      kind: cube
+      body_name: sim_cube_2
+      pose: {x: 1.45, y: -0.30, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+    - id: 4
+      name: block_d
+      kind: cube
+      body_name: sim_cube_3
+      pose: {x: 1.55, y: -0.30, yaw: 0.0}
+      size: 0.07
+      mass: 0.15
+
+    # A toy ball in the Toys area (top-centre of Fig. 1), between the two chairs.
+    # A free body the dog (robot) can roll; size is the diameter.
+    - id: 5
+      name: toy_ball
+      kind: ball
+      body_name: sim_ball_0
+      pose: {x: 0.1, y: 1.5, z: 0.0, yaw: 0.0}
+      size: 0.18
+      mass: 0.08

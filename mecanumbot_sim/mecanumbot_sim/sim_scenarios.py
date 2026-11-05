@@ -28,6 +28,7 @@ SUPPORTED_PROP_BODIES = (
     "sim_cube_1",
     "sim_cube_2",
     "sim_cube_3",
+    "sim_ball_0",
 )
 
 #: Aerobic moves an exercising actor can perform, one repetition per gait period.
@@ -80,6 +81,34 @@ SEGMENT_NAMES = (
 #: A standard yoga mat, used when a mat prop gives no explicit size.
 YOGA_MAT_LENGTH = 1.73
 YOGA_MAT_WIDTH = 0.61
+
+#: Default MuJoCo world, used by every scenario except the Strange Situation Test.
+DEFAULT_MUJOCO_MODEL = "mecanumbot.xml"
+#: The SST world, with the room furniture and the recoloured owner/stranger.
+SST_MUJOCO_MODEL = "mecanumbot_sst.xml"
+#: Scenario-name prefix that selects the SST world.
+SST_SCENARIO_PREFIX = "sst_"
+
+
+def mujoco_model_for_scenario(scenario_path: str) -> str:
+    """
+    Pick the MuJoCo model file name a scenario should load.
+
+    Scenario-to-model routing lives here, not in the launch file, so it is a
+    ROS-free rule that `sim.launch.py` and tests share. The rule is deliberately
+    simple: a scenario whose file name starts with ``sst_`` wants the Strange
+    Situation Test world; everything else (and an empty scenario) keeps the
+    original world, so the 12 existing scenarios are untouched.
+
+    Returns a bare file name under the package's ``mujoco/`` share directory; the
+    caller joins it to that directory.
+    """
+    if not scenario_path:
+        return DEFAULT_MUJOCO_MODEL
+    stem = Path(scenario_path).name
+    if stem.startswith(SST_SCENARIO_PREFIX):
+        return SST_MUJOCO_MODEL
+    return DEFAULT_MUJOCO_MODEL
 
 
 @dataclass(frozen=True)

@@ -326,6 +326,8 @@ class MecanumbotMujocoIONode(Node):
 
             if prop.body_name.startswith("sim_mat"):
                 half_extent = self.place_mat(prop, body_id, geom_id)
+            elif prop.body_name.startswith("sim_ball"):
+                half_extent = self.place_ball(prop, body_id, geom_id)
             else:
                 half_extent = self.place_cube(prop, body_id, geom_id)
 
@@ -387,6 +389,44 @@ class MecanumbotMujocoIONode(Node):
             self.model.body_dofadr[body_id] : self.model.body_dofadr[body_id] + 6
         ] = 0.0
         return half_edge
+
+    def place_ball(self, prop, body_id: int, geom_id: int) -> float:
+        """
+        Size and place a rollable ball; returns its radius.
+
+        Like a cube it is a free body placed through its free joint, so the robot
+        can nudge it. `size` is the ball's diameter (to match the cube's `size`
+        being a full edge), so the radius is half of it. The sphere inertia is
+        2/5 m r^2 rather than the cube's m e^2 / 6.
+        """
+        radius = (
+            0.5 * float(prop.size[0])
+            if prop.size
+            else float(self.model.geom_size[geom_id][0])
+        )
+        self.model.geom_size[geom_id] = np.array(
+            [radius, 0.0, 0.0], dtype=np.float64
+        )
+
+        mass = float(prop.mass) if prop.mass else float(self.model.body_mass[body_id])
+        self.model.body_mass[body_id] = mass
+        self.model.body_inertia[body_id] = np.full(3, 0.4 * mass * radius * radius)
+
+        # A ball with no z given rests on the floor, its centre one radius up.
+        z = prop.z if prop.z > 0.0 else radius
+        joint_id = self.model.body_jntadr[body_id]
+        qpos_adr = self.model.jnt_qposadr[joint_id]
+        self.data.qpos[qpos_adr : qpos_adr + 3] = np.array(
+            [prop.x, prop.y, z], dtype=np.float64
+        )
+        self.data.qpos[qpos_adr + 3 : qpos_adr + 7] = np.array(
+            [math.cos(prop.yaw / 2.0), 0.0, 0.0, math.sin(prop.yaw / 2.0)],
+            dtype=np.float64,
+        )
+        self.data.qvel[
+            self.model.body_dofadr[body_id] : self.model.body_dofadr[body_id] + 6
+        ] = 0.0
+        return radius
 
     def set_actor_pose(
         self, mocap_id: int, x: float, y: float, z: float, yaw: float

@@ -78,7 +78,7 @@ of a constant that drifted in one copy.
 
 | Parameter | Default | Function |
 | --- | --- | --- |
-| `model_path` | `mecanumbot_sim/mujoco/mecanumbot.xml` | MJCF model. |
+| `model_path` | `mecanumbot_sim/mujoco/mecanumbot.xml` | MJCF model. `sim.launch.py` overrides it to `mecanumbot_sst.xml` for `sst_*` scenarios (see [the SST episodes](#the-strange-situation-test-episodes)); set it directly to run a node against another world. |
 | `publish_clock` | `true` | Publish `/clock`. This backend is the clock source, so it runs with `use_sim_time:=false` itself. |
 | `show_viewer` | `true` | Open the passive MuJoCo viewer. |
 | `scan_rate_hz` | `8.0` | Lidar rate. Rays are cast with `mj_ray`. |
@@ -366,6 +366,51 @@ the cube edge from its own `scenario_path` parameter — `sim.launch.py` hands i
 the same file the backend loaded. Without one it falls back to a yoga mat and a
 0.07 m cube.
 
+### The Strange Situation Test episodes
+
+Seven scenarios, `sst_episode_1_*` through `sst_episode_7_*`, reproduce the dog
+attachment "Strange Situation Test" one episode per file. The robot is the **dog**;
+`sim_human_0` is the **owner** (blue) and `sim_human_1` is the **stranger** (red).
+The owner is the tracked subject whenever present, so `/sim/subject_pose_ground_truth`
+follows the owner and the detection evaluator reads `subject_missing` in the
+episodes where the owner has left or never entered.
+
+These are the only scenarios that load a **different MuJoCo world**,
+`mujoco/mecanumbot_sst.xml`: a verbatim copy of `mecanumbot.xml` with the test
+room's furniture added and the two figures recoloured. The switch is by scenario
+name — `sim.launch.py` routes any scenario whose file name starts with `sst_` to
+the SST world and everything else to the default world, through
+`mujoco_model_for_scenario` in `sim_scenarios.py`. The 12 original scenarios are
+untouched and keep `mecanumbot.xml`. The furniture (two chairs, a door marker, a
+water bowl, two location patches) is static world geometry, so like the box
+obstacles it never appears on `/sim/actors` or `/sim/props` — only the people and
+the building-block cubes do.
+
+Entering and leaving the room is expressed with motion alone: a person starts at
+the door and walks in, and "leaving" is a final `patrol` waypoint south of the
+south wall (`y < -2.2`), off the arena floor, with `loop: false`. The real
+minutes are shortened to seconds of `pause`, and block-carrying is simplified to
+the person walking between Location 1 and Location 2 — the cubes are not
+physically relocated.
+
+| Episode | File | Who is there | Subject |
+| --- | --- | --- | --- |
+| 1 | `sst_episode_1_owner_and_dog` | Owner | Owner tours Chair 1 → blocks → Chair 1 |
+| 2 | `sst_episode_2_owner_stranger_dog` | Owner + stranger | Owner (leaves mid-episode; stranger stays) |
+| 3 | `sst_episode_3_stranger_dog` | Stranger | none (`subject_missing`); stranger does paperwork, leaves |
+| 4 | `sst_episode_4_dog_alone` | nobody (`actors: []`) | none |
+| 5 | `sst_episode_5_owner_dog` | Owner | Owner re-enters, greets, sits, leaves again |
+| 6 | `sst_episode_6_dog_alone` | nobody (`actors: []`) | none |
+| 7 | `sst_episode_7_stranger_dog` | Stranger | none; stranger greets, does paperwork, leaves with the dog |
+
+```bash
+# play the first episode (loads the SST world automatically)
+ros2 launch mecanumbot_sim sim.launch.py scenario:=sst_episode_1_owner_and_dog
+
+# with perception, to watch the detector follow the owner and lose them when they leave
+ros2 launch mecanumbot_sim sim.launch.py mode:=perception scenario:=sst_episode_2_owner_stranger_dog
+```
+
 ## Evaluation nodes
 
 `mecanumbot_sim_detection_evaluator_node` publishes
@@ -529,8 +574,9 @@ workspace.
 | `mecanumbot_sim/nav_shim_node.py` | Nav2 stand-in. |
 | `launch/sim.launch.py` | The entry point: `backend` × `mode`, see "Running". |
 | `launch/gz_backend.launch.py` | Gazebo server, model spawning and bridge. Included by `sim.launch.py`, not run directly. |
-| `config/sim_scenarios/*.yaml` | The twelve shipped scenarios. |
+| `config/sim_scenarios/*.yaml` | The twelve original scenarios plus the seven `sst_episode_*` Strange Situation Test episodes. |
 | `mujoco/mecanumbot.xml` | MJCF model and arena. |
+| `mujoco/mecanumbot_sst.xml` | SST world: a copy of `mecanumbot.xml` with the test-room furniture and recoloured owner/stranger. Loaded for `sst_*` scenarios. |
 | `worlds/mecanumbot_arena.sdf` | Gazebo arena, geometrically identical to the MJCF one. |
 | `models/mecanumbot/` | Gazebo robot model. |
 | `models/sim_human/`, `models/sim_wall_panel/` | Gazebo scenario actor models. |

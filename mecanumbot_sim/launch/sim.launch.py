@@ -50,6 +50,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
+from mecanumbot_sim.sim_scenarios import mujoco_model_for_scenario
 
 BT_EXECUTABLES = {
     "Doglike": "doglike_leading_bt_node",
@@ -117,6 +118,13 @@ def launch_setup(context, *args, **kwargs):
     urdf_path = os.path.join(description_share, "urdf", "mecanumbot.urdf")
     robot_description = Command(["xacro ", urdf_path, " namespace:=", namespace])
 
+    # The MuJoCo world depends on the scenario: an `sst_*` scenario brings in the
+    # Strange Situation Test furniture, everything else keeps the original world.
+    # Gazebo spawns from its own .sdf world and ignores this.
+    mujoco_model_path = os.path.join(
+        sim_share, "mujoco", mujoco_model_for_scenario(scenario_path)
+    )
+
     actions = []
 
     # ---------------------------------------------------------------- backend
@@ -135,6 +143,7 @@ def launch_setup(context, *args, **kwargs):
                         # wait on /clock.
                         "use_sim_time": False,
                         "scenario_path": scenario_path,
+                        "model_path": mujoco_model_path,
                         "publish_clock": True,
                         "show_viewer": show_viewer,
                     },
